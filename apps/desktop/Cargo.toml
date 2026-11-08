@@ -1,0 +1,15 @@
+[package]
+name = "crabhosts-desktop"
+description = "Slint desktop application for CrabHosts"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+build = "build.rs"
+
+[dependencies]
+crabhosts-core = { path = "../../crates/core" }
+slint.workspace = true
+
+[build-dependencies]
+slint-build.workspace = true

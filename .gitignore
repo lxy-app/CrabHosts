@@ -1,0 +1,12 @@
+/target/
+/.cargo-home/
+**/*.rs.bk
+.DS_Store
+*.log
+.env
+.env.*
+!.env.example
+/dist/
+/build/
+*.hosts
+*.hosts.json

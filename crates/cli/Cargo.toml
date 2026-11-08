@@ -1,0 +1,20 @@
+[package]
+name = "crabhosts-cli"
+description = "AI-friendly command line interface for CrabHosts"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+
+[[bin]]
+name = "crabhosts"
+path = "src/main.rs"
+
+[dependencies]
+clap.workspace = true
+crabhosts-core = { path = "../core" }
+serde.workspace = true
+serde_json.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
