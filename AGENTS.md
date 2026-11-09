@@ -2,9 +2,12 @@
 
 ## Project map
 
-- `crates/core`: UI-independent model, validation, profile storage, managed hosts blocks, backups, atomic writes.
+- `crates/core`: UI-independent model, validation, profile storage, managed hosts blocks, backups, atomic writes, and privileged-plan verification.
+- `crates/system-client`: shared Rust client for desktop and CLI, plus the macOS XPC/SMAppService native bridge.
 - `crates/cli`: the `crabhosts` binary and stable JSON automation contract.
-- `apps/desktop`: Slint desktop shell; all system operations must go through `crabhosts-core`.
+- `apps/desktop`: Slint desktop shell; it depends on the shared client library rather than spawning the CLI.
+- `apps/macos-helper`: signed root launchd executable; production writes use fixed `/etc/hosts` and never read CrabHosts path overrides.
+- `docs/macos-helper.md`: Helper signing, installation, threat model, and verification boundaries.
 - `skills/crabhosts`: canonical Agent Skill. Update it whenever the CLI contract or safety workflow changes.
 - `docs/sync.md`: synchronization design. Do not describe planned network features as implemented.
 
@@ -16,6 +19,7 @@ The workspace uses Rust 2024 edition and declares Rust 1.88 as MSRV in `Cargo.to
 cargo fmt --all -- --check
 cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace
+cargo test -p crabhosts-desktop --features ui-tests
 cargo run -p crabhosts-cli -- --help
 cargo run -p crabhosts-desktop
 ```

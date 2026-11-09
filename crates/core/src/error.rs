@@ -22,6 +22,14 @@ pub enum Error {
     Conflict,
     #[error("unsafe managed hosts block: {0}")]
     UnsafeBlock(String),
+    #[error("privileged helper is unavailable: {0}")]
+    HelperUnavailable(String),
+    #[error("privileged helper protocol error: {0}")]
+    HelperProtocol(String),
+    #[error("privileged helper rejected the write: {0}")]
+    HelperPermission(String),
+    #[error("privileged helper failed to write hosts: {0}")]
+    HelperWrite(String),
 }
 
 impl Error {
@@ -38,11 +46,16 @@ impl Error {
             Self::ConfirmationRequired => "confirmation_required",
             Self::Conflict => "conflict",
             Self::UnsafeBlock(_) => "unsafe_managed_block",
+            Self::HelperUnavailable(_) => "helper_unavailable",
+            Self::HelperProtocol(_) => "helper_protocol",
+            Self::HelperPermission(_) => "permission_denied",
+            Self::HelperWrite(_) => "helper_write_failed",
         }
     }
 
     pub fn is_permission_denied(&self) -> bool {
         matches!(self, Self::Io(error) if error.kind() == std::io::ErrorKind::PermissionDenied)
+            || matches!(self, Self::HelperPermission(_))
     }
 }
 

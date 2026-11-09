@@ -93,4 +93,10 @@ fn json_workflow_is_non_interactive_and_safe() {
     assert!(content.contains("127.0.0.1 localhost"));
     assert!(content.contains("10.0.0.2\tapi.local admin.local"));
     assert!(json(&applied)["data"]["backup_id"].is_string());
+
+    let helper = run(&config, &hosts, &["--json", "helper", "status"]);
+    assert!(helper.status.success(), "{helper:?}");
+    let helper = json(&helper);
+    assert_eq!(helper["data"]["mode"], "direct");
+    assert_eq!(helper["data"]["ready"], true);
 }

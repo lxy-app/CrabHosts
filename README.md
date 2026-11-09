@@ -2,7 +2,7 @@
 
 CrabHosts 是一个以 **Rust + Slint** 构建的 hosts 管理工具，目标是提供比传统 hosts 切换工具更适合自动化与 AI Harness 的使用方式：同一份核心能力同时服务桌面端和 CLI，并通过 Agent Skill 让 Claude Code、Codex、WorkBuddy、DSH 等工具安全地管理本机 hosts。
 
-> 当前为工程初始化版本。Profile 管理、CLI JSON 契约、差异预览、确认写入、自动备份与恢复已有实现；多设备同步目前提供架构方案，尚未实现网络同步。
+> 当前为工程初始化版本。Profile 管理、桌面端 Profile 编辑、CLI JSON 契约、差异预览、确认写入、自动备份与恢复已有实现；多设备同步目前提供架构方案，尚未实现网络同步。
 
 ## 核心原则
 
@@ -16,8 +16,10 @@ CrabHosts 是一个以 **Rust + Slint** 构建的 hosts 管理工具，目标是
 
 ```text
 crates/core/          hosts 数据模型、校验、存储、托管区块、备份与恢复
+crates/system-client/ 桌面端与 CLI 共用的系统客户端及 macOS XPC 桥接
 crates/cli/           crabhosts 命令行程序
 apps/desktop/         Slint 桌面端及 .slint UI
+apps/macos-helper/    固定操作系统 hosts 的签名 launchd root Helper
 skills/crabhosts/     Harness 无关的 Agent Skill 与 CLI 契约
 docs/sync.md          多设备同步、冲突处理、加密与设备管理方案
 docs/ai-harness.md    AI Harness 接入说明
@@ -33,6 +35,23 @@ cargo build --workspace
 cargo test --workspace
 cargo run -p crabhosts-cli -- --help
 cargo run -p crabhosts-desktop
+```
+
+### 桌面端
+
+`cargo run -p crabhosts-desktop` 打开图形界面，日常操作无需拆到 CLI：
+
+- 新建 Profile，可勾选“导入当前系统 hosts 中的记录”，把现有映射保存为初始内容。
+- 添加、启用/禁用、删除记录；所有编辑只写入 Profile 数据库，不自动修改系统 hosts。
+- 查看系统 hosts 原文（只读），或把系统 hosts 中的记录合并导入当前 Profile。
+- 预览差异，确认后再应用；删除 Profile 只删除配置，不影响系统 hosts 与已有备份。
+- 界面采用已评审的暖黑 + 乳白中性色原型，包含 Profile、记录表格、添加表单、只读预览与确认弹层。
+- macOS 13+ 正式写入通过常驻注册的 root Helper；侧栏提供独立的状态与显式安装/更新入口，日常应用不重复询问管理员密码。
+
+无头 UI 流程测试需要较新的 Rust 工具链（Slint 测试后端要求 1.92），因此作为可选特性提供：
+
+```bash
+cargo test -p crabhosts-desktop --features ui-tests
 ```
 
 ### CLI 快速开始
@@ -61,7 +80,20 @@ crabhosts system restore <backup-id> --dry-run
 crabhosts system restore <backup-id> --yes
 ```
 
-`profile` 子命令只修改 Profile 数据库，不修改系统 hosts。系统文件通常需要管理员/root 权限；CrabHosts 不会自行调用 `sudo` 或弹隐式提权命令。
+`profile` 子命令只修改 Profile 数据库，不修改系统 hosts。macOS 正式写入由 CLI 自动连接已安装的 Helper，不需要 `sudo`。可先运行 `crabhosts --json helper status` 做只读预检；Helper 不可用或版本不匹配时不会回退到直接写系统文件。
+
+### macOS 签名打包与 Helper
+
+使用 `scripts/package-macos.sh` 构建包含桌面端、CLI 和 Helper 的签名 `.app`。必须显式选择 Apple 签名身份及对应 Team ID：
+
+```bash
+export CRABHOSTS_CODESIGN_IDENTITY="Developer ID Application: … (TEAMID)"
+export CRABHOSTS_TEAM_ID="TEAMID"
+./scripts/package-macos.sh
+open dist/CrabHosts.app
+```
+
+脚本只在仓库 `dist/` 生成产物，不自动安装应用或注册 Helper。首次在桌面端点击 Helper 安装/更新后，按 macOS 提示完成管理员批准；如系统要求，还需在“系统设置 → 通用 → 登录项与扩展”中允许。正式发布包含 LaunchDaemon 的应用还需完成 Apple 公证。普通 `cargo run` 可用于开发和 fixture 测试，但不具备正式 Helper 的签名身份。
 
 ### 安全的本地演示
 
@@ -88,7 +120,7 @@ Canonical Skill 位于 [`skills/crabhosts/SKILL.md`](skills/crabhosts/SKILL.md)�
 ./scripts/install-skill.sh ~/.agents/skills
 ```
 
-其他 Harness 可直接导入该目录，或按客户端当前版本支持的自定义 Skill 目录安装。详见 [AI Harness 接入说明](docs/ai-harness.md) 和 [CLI 契约](skills/crabhosts/references/cli.md)。
+其他 Harness 可直接导入该目录，或按客户端当前版本支持的自定义 Skill 目录安装。详见 [AI Harness 接入说明](docs/ai-harness.md)、[macOS Helper](docs/macos-helper.md) 和 [CLI 契约](skills/crabhosts/references/cli.md)。
 
 ## 多设备同步方案
 
@@ -104,7 +136,7 @@ Canonical Skill 位于 [`skills/crabhosts/SKILL.md`](skills/crabhosts/SKILL.md)�
 
 ## 下一步
 
-- 桌面端 Profile 编辑器与批量导入/导出。
-- 独立的最小权限系统写入 Helper 与审计日志。
+- 桌面端批量导入/导出与 Profile 间对比。
+- macOS Helper 的 macOS 13 兼容性、Apple 公证，以及撤销、重启和更新场景验收。
 - WebDAV SyncProvider、端到端加密和设备配对。
-- Windows 提权、macOS 授权及 Linux polkit 的原生集成。
+- Windows 提权及 Linux polkit 的原生集成。

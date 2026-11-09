@@ -1,4 +1,4 @@
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use similar::TextDiff;
 
 use crate::{Document, Error, Result, Storage, sha256_hex};
@@ -22,7 +22,7 @@ pub struct SystemPlan {
     pub proposed: String,
 }
 
-#[derive(Clone, Debug, Serialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct ApplyReport {
     pub operation: String,
     pub source: String,
@@ -77,7 +77,7 @@ pub fn apply_plan(storage: &Storage, plan: &SystemPlan) -> Result<ApplyReport> {
     })
 }
 
-fn make_plan(
+pub(crate) fn make_plan(
     operation: &str,
     source: &str,
     current: String,
@@ -103,7 +103,11 @@ fn make_plan(
     }
 }
 
-fn replace_managed_block(current: &str, profile_name: &str, managed: &str) -> Result<String> {
+pub(crate) fn replace_managed_block(
+    current: &str,
+    profile_name: &str,
+    managed: &str,
+) -> Result<String> {
     let lines = current.lines().collect::<Vec<_>>();
     let starts = lines
         .iter()

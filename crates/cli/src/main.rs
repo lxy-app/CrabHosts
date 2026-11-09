@@ -2,8 +2,9 @@ use std::process::ExitCode;
 
 use clap::{Parser, Subcommand};
 use crabhosts_core::{
-    Error, HostEntry, Profile, Result, Storage, apply_plan, parse_hosts, plan_profile, plan_restore,
+    Error, HostEntry, Profile, Result, Storage, parse_hosts, plan_profile, plan_restore,
 };
+use crabhosts_system_client::SystemClient;
 use serde::Serialize;
 use serde_json::{Value, json};
 
@@ -39,6 +40,11 @@ enum Command {
     Backup {
         #[command(subcommand)]
         command: BackupCommand,
+    },
+    /// Inspect the optional macOS privileged helper without changing the system.
+    Helper {
+        #[command(subcommand)]
+        command: HelperCommand,
     },
 }
 
@@ -114,6 +120,12 @@ enum SystemCommand {
 #[derive(Debug, Subcommand)]
 enum BackupCommand {
     List,
+}
+
+#[derive(Debug, Subcommand)]
+enum HelperCommand {
+    /// Check connectivity, version, and protocol compatibility.
+    Status,
 }
 
 struct Output {
@@ -202,6 +214,47 @@ fn run(cli: Cli) -> Result<Output> {
             };
             Ok(Output::new("backup.list", backups, human))
         }
+        Command::Helper {
+            command: HelperCommand::Status,
+        } => helper_status(&storage),
+    }
+}
+
+fn helper_status(storage: &Storage) -> Result<Output> {
+    if !cfg!(target_os = "macos")
+        || std::env::var_os(crabhosts_core::HOSTS_FILE_ENV).is_some()
+        || storage.paths().hosts_file != std::path::Path::new("/etc/hosts")
+    {
+        return Ok(Output::new(
+            "helper.status",
+            json!({"mode":"direct","ready":true}),
+            "Direct storage mode; no privileged helper is used.".to_owned(),
+        ));
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        let status = crabhosts_system_client::helper_status()?;
+        if status.helper_version != env!("CARGO_PKG_VERSION") {
+            return Err(Error::HelperProtocol(format!(
+                "helper version {} does not match CLI version {}",
+                status.helper_version,
+                env!("CARGO_PKG_VERSION")
+            )));
+        }
+        Ok(Output::new(
+            "helper.status",
+            json!({"mode":"helper","ready":true,"helper":status}),
+            format!(
+                "CrabHosts Helper v{} is ready (protocol {}).",
+                status.helper_version, status.protocol_version
+            ),
+        ))
+    }
+
+    #[cfg(not(target_os = "macos"))]
+    {
+        unreachable!("non-macOS returned direct storage status above")
     }
 }
 
@@ -298,28 +351,12 @@ fn profile(storage: &Storage, command: ProfileCommand) -> Result<Output> {
             comment,
         } => {
             let mut document = storage.load()?;
-            let new_entry = HostEntry::new(&ip, hostnames, !disabled, comment.clone())?;
-            let target = document.profile_mut(&profile)?;
-            let entry_id = if let Some(existing) = target
-                .entries
-                .iter_mut()
-                .find(|entry| entry.ip == new_entry.ip && entry.enabled == new_entry.enabled)
-            {
-                for hostname in new_entry.hostnames {
-                    if !existing.hostnames.contains(&hostname) {
-                        existing.hostnames.push(hostname);
-                    }
-                }
-                if comment.is_some() {
-                    existing.comment = comment;
-                }
-                existing.id.clone()
-            } else {
-                let id = new_entry.id.clone();
-                target.entries.push(new_entry);
-                id
-            };
-            let entry = target
+            let new_entry = HostEntry::new(&ip, hostnames, !disabled, comment)?;
+            let entry_id = document
+                .profile_mut(&profile)?
+                .add_or_merge_entry(new_entry)?;
+            let entry = document
+                .profile(&profile)?
                 .entries
                 .iter()
                 .find(|entry| entry.id == entry_id)
@@ -401,7 +438,7 @@ fn system(storage: &Storage, command: SystemCommand) -> Result<Output> {
                 let human = plan_human(&plan.diff, plan.changed);
                 Ok(Output::new("system.apply.dry_run", plan, human))
             } else {
-                let report = apply_plan(storage, &plan)?;
+                let report = SystemClient::new().apply_plan(storage, &plan)?;
                 let human = if report.changed {
                     format!(
                         "Applied profile {profile:?}. Backup: {}",
@@ -426,7 +463,7 @@ fn system(storage: &Storage, command: SystemCommand) -> Result<Output> {
                 let human = plan_human(&plan.diff, plan.changed);
                 Ok(Output::new("system.restore.dry_run", plan, human))
             } else {
-                let report = apply_plan(storage, &plan)?;
+                let report = SystemClient::new().apply_plan(storage, &plan)?;
                 let human = if report.changed {
                     format!(
                         "Restored backup {backup_id:?}. Pre-restore backup: {}",

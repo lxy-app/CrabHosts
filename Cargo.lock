@@ -789,6 +789,7 @@ version = "0.1.0"
 dependencies = [
  "clap",
  "crabhosts-core",
+ "crabhosts-system-client",
  "serde",
  "serde_json",
  "tempfile",
@@ -800,6 +801,7 @@ version = "0.1.0"
 dependencies = [
  "chrono",
  "directories",
+ "libc",
  "serde",
  "serde_json",
  "sha2",
@@ -814,8 +816,31 @@ name = "crabhosts-desktop"
 version = "0.1.0"
 dependencies = [
  "crabhosts-core",
+ "crabhosts-system-client",
+ "i-slint-backend-testing",
+ "objc2 0.6.5",
+ "objc2-app-kit 0.3.2",
+ "objc2-foundation 0.3.2",
  "slint",
  "slint-build",
+ "tempfile",
+]
+
+[[package]]
+name = "crabhosts-macos-helper"
+version = "0.1.0"
+dependencies = [
+ "crabhosts-system-client",
+]
+
+[[package]]
+name = "crabhosts-system-client"
+version = "0.1.0"
+dependencies = [
+ "cc",
+ "crabhosts-core",
+ "serde_json",
+ "tempfile",
 ]
 
 [[package]]
@@ -1742,6 +1767,18 @@ dependencies = [
  "i-slint-core",
  "i-slint-core-macros",
  "i-slint-renderer-femtovg",
+]
+
+[[package]]
+name = "i-slint-backend-testing"
+version = "1.18.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "01943d6c5ea5bc913d497bdaa423c309e7627afff47a6794bfd13be5c564209f"
+dependencies = [
+ "cfg_aliases",
+ "i-slint-common",
+ "i-slint-core",
+ "vtable",
 ]
 
 [[package]]

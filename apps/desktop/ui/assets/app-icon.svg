@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 256 256">
+  <defs>
+    <linearGradient id="tile" x2=".75" y2="1">
+      <stop stop-color="#414b42"/><stop offset="1" stop-color="#1a211e"/>
+    </linearGradient>
+    <linearGradient id="shell" x2=".25" y2="1">
+      <stop stop-color="#fff6df"/><stop offset="1" stop-color="#dfd4b9"/>
+    </linearGradient>
+    <g id="limbs">
+      <path d="M96 125 75 111" fill="none" stroke="#e8ddc4" stroke-width="11" stroke-linecap="round"/>
+      <path d="M85 114C65 124 46 109 48 89c1-8 4-15 9-21 1-1 3-1 3 1l4 18 12 6 3-14c0-2 2-2 3-1 11 9 15 25 3 36Z" fill="url(#shell)"/>
+      <path d="m88 139-21-4-13 8m34 7-18 5-10 13m35-9-13 10-5 11" fill="none" stroke="#bbc9b5" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+    </g>
+  </defs>
+  <rect x="21" y="23" width="214" height="214" rx="48" fill="#111a17" opacity=".16"/>
+  <rect x="21" y="20" width="214" height="214" rx="48" fill="url(#tile)"/>
+  <rect x="22" y="21" width="212" height="212" rx="47" fill="none" stroke="#e2efd8" stroke-opacity=".13"/>
+  <use href="#limbs"/><use href="#limbs" transform="translate(256 0) scale(-1 1)"/>
+  <path d="M80 139c0-16 10-30 25-32 14-2 32-2 46 0 15 2 25 16 25 32 0 23-19 41-48 41s-48-18-48-41Z" fill="url(#shell)"/>
+  <path d="m108 131 10 8-10 8m21 0h15" fill="none" stroke="#29352e" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

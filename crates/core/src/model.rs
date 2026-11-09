@@ -171,6 +171,36 @@ impl Profile {
         output
     }
 
+    /// Adds `entry`, merging its hostnames into an existing entry with the same IP and
+    /// enabled state. Returns the ID of the entry that now holds the hostnames.
+    pub fn add_or_merge_entry(&mut self, entry: HostEntry) -> Result<String> {
+        entry.validate()?;
+        if let Some(existing) = self
+            .entries
+            .iter_mut()
+            .find(|item| item.ip == entry.ip && item.enabled == entry.enabled)
+        {
+            for hostname in &entry.hostnames {
+                if !existing
+                    .hostnames
+                    .iter()
+                    .any(|item| item.eq_ignore_ascii_case(hostname))
+                {
+                    existing.hostnames.push(hostname.clone());
+                }
+            }
+            if entry.comment.is_some() {
+                existing.comment = entry.comment;
+            }
+            existing.validate()?;
+            Ok(existing.id.clone())
+        } else {
+            let id = entry.id.clone();
+            self.entries.push(entry);
+            Ok(id)
+        }
+    }
+
     pub fn set_hostname_enabled(&mut self, hostname: &str, enabled: bool) -> Result<usize> {
         let hostname = normalize_hostname(hostname)?;
         let mut found = false;

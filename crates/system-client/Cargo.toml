@@ -1,0 +1,17 @@
+[package]
+name = "crabhosts-system-client"
+description = "Shared system hosts client for CrabHosts desktop and CLI"
+version.workspace = true
+edition = "2024"
+rust-version.workspace = true
+authors.workspace = true
+
+[dependencies]
+crabhosts-core = { path = "../core" }
+serde_json.workspace = true
+
+[build-dependencies]
+cc = "1.2"
+
+[dev-dependencies]
+tempfile.workspace = true

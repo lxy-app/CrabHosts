@@ -37,9 +37,10 @@
 
 ```bash
 crabhosts --json status
+crabhosts --json helper status
 ```
 
-查看 CrabHosts 当前状态。`--json` 是全局选项，适用于本文所有命令。
+查看 CrabHosts 当前状态。`helper status` 是只读预检：在正式 macOS 模式下检查 Helper 的连通性、版本与协议；临时 fixture 模式返回 `data.mode = "direct"`。该命令不会安装或更新 Helper，也不会修改系统 hosts。`--json` 是全局选项，适用于本文所有命令。
 
 ### Profile
 
@@ -136,7 +137,9 @@ SystemPlan 绑定以下四部分：
 
 ## 3. 系统写入保证与禁止事项
 
-实际 apply/restore 由 CrabHosts 核心执行。两者都会在写入前自动备份当前状态、使用原子替换，并在 plan 过期或冲突时拒绝写入，但写入范围不同：
+实际 apply/restore 由 CrabHosts 核心完成。macOS 正式系统路径通过已注册并验证签名的 root Helper 写入；CLI 自动通过共享客户端连接 Helper，不需要也不应添加 `sudo`。Helper 在安装、更新或修复时由用户显式授权，日常写入不重复询问密码。Helper 不可用、版本不匹配或签名验证失败时命令失败，不回退到直接写系统文件。`helper_unavailable`、`helper_protocol` 和 `helper_write_failed` 均为结构化错误；连接结果不确定时应重新读取状态，不盲目重试。
+
+两者都会在写入前自动备份当前状态、使用原子替换，并在 plan 过期或冲突时拒绝写入。备份仍由原用户进程创建，Helper 不修改用户 Profile 数据库。写入范围如下：
 
 - **apply profile**：只替换 CrabHosts managed block，保留其他系统 hosts 内容。
 - **restore backup**：恢复到所选备份中的完整 hosts 快照，不限于 managed block；恢复前仍会备份当前状态。

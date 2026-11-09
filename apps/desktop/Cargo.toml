@@ -7,9 +7,24 @@ rust-version.workspace = true
 authors.workspace = true
 build = "build.rs"
 
+[features]
+# Headless UI tests need a newer toolchain than the crate MSRV, so they are opt-in.
+ui-tests = ["dep:i-slint-backend-testing"]
+
 [dependencies]
 crabhosts-core = { path = "../../crates/core" }
+crabhosts-system-client = { path = "../../crates/system-client" }
 slint.workspace = true
+# Internal Slint crate, pinned to the Slint version, enabled by the `ui-tests` feature.
+i-slint-backend-testing = { version = "=1.18.1", optional = true }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2 = "0.6"
+objc2-app-kit = { version = "0.3", default-features = false, features = ["std", "NSApplication", "NSImage", "NSResponder"] }
+objc2-foundation = { version = "0.3", default-features = false, features = ["std", "NSData"] }
 
 [build-dependencies]
 slint-build.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true

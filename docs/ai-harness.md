@@ -71,6 +71,8 @@ crabhosts --json system diff <profile>
 
 `system diff`、`system apply --dry-run` 和 `system restore --dry-run` 的成功 JSON 均在 `data.plan_id` 返回 SystemPlan 标识。AI/Harness 正式写入必须取**当前 dry-run** 的 `plan_id`，不能用历史预览、其他 operation 或其他 source 的标识代替。
 
+macOS 可先执行 `crabhosts --json helper status` 做只读预检；其成功数据包含 `mode`、`ready` 和 Helper 版本/协议信息。fixture 模式返回 `mode = "direct"`。该命令不安装或更新 Helper。
+
 ## 4. 强制系统修改流程
 
 只读查看和 profile 编辑不等于系统应用。`profile create/add/remove/enable/disable` 只修改 profile；`profile delete` 是删除操作，必须先展示目标并获得明确批准后才使用 `--yes`。
@@ -97,7 +99,9 @@ crabhosts --json system diff <profile>
 
 人工交互式 CLI 可以在确认后只使用 `--yes`；AI/Harness 正式写入必须将 `--expected-plan <plan-id>` 与 `--yes` 同用，不得省略。
 
-实际系统修改必须由 CrabHosts 核心完成。apply 在修改前自动备份并原子替换，只替换 CrabHosts managed block，保留其他系统 hosts；restore 在恢复前同样自动备份当前状态并原子替换，但恢复的是所选备份中的**完整 hosts 快照**，不限于 managed block。AI 不得直接编辑 `/etc/hosts` 或 Windows hosts，不得添加隐式提权、shell 插值或远程触发自动 apply。
+实际系统修改必须由 CrabHosts 核心完成。macOS 正式写入由 CLI 通过共享 Rust 客户端连接已注册并验证签名的 root Helper，不需要 `sudo`；Helper 仅在用户于桌面端显式安装、更新或修复时进行系统授权。AI 不得自行触发生命周期操作。Helper 不可用或协议不匹配时报告错误，不回退到直接写系统文件。连接中断或超时时写入结果可能不确定，应重新读取状态，不得自动重试。
+
+apply 在修改前由原用户进程自动备份并原子替换，只替换 CrabHosts managed block，保留其他系统 hosts；restore 在恢复前同样自动备份当前状态并原子替换，但恢复的是所选备份中的**完整 hosts 快照**，不限于 managed block。AI 不得直接编辑 `/etc/hosts` 或 Windows hosts，不得添加隐式提权、shell 插值或远程触发自动 apply。
 
 ## 5. 测试与敏感信息
 
