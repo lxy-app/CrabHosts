@@ -45,7 +45,11 @@ cargo run -p crabhosts-desktop
 - 添加、启用/禁用、删除记录；所有编辑只写入 Profile 数据库，不自动修改系统 hosts。
 - 查看系统 hosts 原文（只读），或把系统 hosts 中的记录合并导入当前 Profile。
 - 预览差异，确认后再应用；删除 Profile 只删除配置，不影响系统 hosts 与已有备份。
-- 界面采用已评审的暖黑 + 乳白中性色原型，包含 Profile、记录表格、添加表单、只读预览与确认弹层。
+- 界面支持在「设置 → 外观」切换浅色和深色主题，包含 Profile、记录表格、添加表单、只读预览与确认弹层。
+- macOS 菜单栏 Tray 支持切换编辑 Profile、打开主窗口、进入设置与退出；Tray 的“应用…”只打开主窗口确认层，不直接写系统 hosts。
+- 设置页包含通用、外观、备份与安全、关于，可从侧栏、Tray 或 `⌘,` 进入。偏好原子保存到设备本地 `preferences.json`，不进入 Profile 同步文档。
+- 登录启动默认关闭，只有显式切换才调用 macOS `SMAppService`；`RequiresApproval` 会单独提示系统批准，不显示为已生效。
+- 桌面端成功应用后按设置保留最近 10/20/50 份受管自动备份；修改设置时不会立即删除历史备份。
 - macOS 13+ 正式写入通过常驻注册的 root Helper；侧栏提供独立的状态与显式安装/更新入口，日常应用不重复询问管理员密码。
 
 无头 UI 流程测试需要较新的 Rust 工具链（Slint 测试后端要求 1.92），因此作为可选特性提供：
@@ -53,6 +57,8 @@ cargo run -p crabhosts-desktop
 ```bash
 cargo test -p crabhosts-desktop --features ui-tests
 ```
+
+Tray、设置、本地偏好和原生验收边界详见 [桌面端 Tray 与设置](docs/desktop-tray-settings.md)。
 
 ### CLI 快速开始
 

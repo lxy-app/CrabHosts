@@ -1,4 +1,6 @@
-import { ListView, ScrollView } from "std-widgets.slint";
+import { ListView, Palette, ScrollView } from "std-widgets.slint";
+import { Theme } from "theme.slint";
+import { SettingsView } from "settings.slint";
 
 export struct ProfileData {
     name: string,
@@ -19,31 +21,6 @@ export struct PreviewLineData {
     kind: string,
 }
 
-global Theme {
-    out property <color> window: #111210;
-    out property <color> sidebar: #171815;
-    out property <color> titlebar: #151613;
-    out property <color> surface: #1b1c19;
-    out property <color> raised: #20211e;
-    out property <color> hover: #272824;
-    out property <color> selected: #2b2c27;
-    out property <color> field: #151613;
-    out property <color> border: #31322d;
-    out property <color> border-soft: #282924;
-    out property <color> text: #f0eee7;
-    out property <color> text-soft: #c8c6bd;
-    out property <color> muted: #97988f;
-    out property <color> faint: #6f7169;
-    out property <color> ivory: #e9e6dc;
-    out property <color> ivory-hover: #f5f2e9;
-    out property <color> ivory-ink: #20211e;
-    out property <color> sage: #a8b7a1;
-    out property <color> sage-soft: #263027;
-    out property <color> danger: #d2aaa3;
-    out property <color> danger-soft: #332625;
-    out property <color> focus: #d8d3c6;
-}
-
 component AppButton inherits FocusScope {
     in property <string> text;
     in property <string> accessible-name;
@@ -55,6 +32,7 @@ component AppButton inherits FocusScope {
     in property <length> min-button-width: 0px;
     callback clicked();
 
+    property <bool> emphasized: root.kind == "primary" || root.kind == "apply";
     width: max(root.min-button-width, layout.preferred-width);
     height: root.button-height;
     accessible-role: button;
@@ -77,17 +55,16 @@ component AppButton inherits FocusScope {
     background := Rectangle {
         border-radius: root.small ? 8px : 9px;
         border-width: root.has-focus ? 2px : 1px;
-        border-color: root.has-focus ? Theme.focus :
-            root.kind == "primary" ? (touch.has-hover ? Theme.ivory-hover : Theme.ivory) :
-            root.kind == "danger" && touch.has-hover ? #60423e :
-            touch.has-hover ? #42433c : Theme.border;
-        background: !root.enabled ? Theme.raised :
-            root.kind == "primary" ? (touch.has-hover ? Theme.ivory-hover : Theme.ivory) :
+        border-color: !root.enabled ? Theme.border : root.has-focus ? Theme.focus :
+            root.emphasized ? Theme.action-border :
+            root.kind == "danger" && touch.has-hover ? Theme.danger : Theme.secondary-border;
+        background: !root.enabled ? Theme.disabled :
+            root.kind == "apply" ? (touch.has-hover ? Theme.apply-hover : Theme.apply) :
+            root.emphasized ? (touch.has-hover ? Theme.action-hover : Theme.action) :
             root.kind == "danger" && touch.has-hover ? Theme.danger-soft :
             root.kind == "quiet" ? transparent :
-            touch.has-hover ? Theme.hover : Theme.raised;
-        opacity: root.enabled ? 1 : 0.45;
-        animate background, border-color { duration: 160ms; }
+            touch.has-hover ? Theme.hover : Theme.secondary;
+        animate background, border-color { duration: Theme.reduce-motion ? 0ms : 160ms; }
 
         touch := TouchArea {
             enabled: root.enabled;
@@ -108,19 +85,19 @@ component AppButton inherits FocusScope {
                     height: 15px;
                     y: (parent.height - self.height) / 2;
                     image-fit: contain;
-                    colorize: !root.enabled ? Theme.text :
-                        root.kind == "primary" ? Theme.ivory-ink :
-                        root.kind == "danger" ? Theme.danger : Theme.text-soft;
+                    colorize: !root.enabled ? Theme.disabled-text :
+                        root.kind == "apply" ? Theme.apply-text : root.emphasized ? Theme.action-text :
+                        root.kind == "danger" ? Theme.danger : Theme.secondary-text;
                 }
             }
             Text {
                 text: root.text;
-                color: !root.enabled ? Theme.text :
-                    root.kind == "primary" ? Theme.ivory-ink :
-                    root.kind == "danger" ? (touch.has-hover ? #e2bbb4 : Theme.danger) :
-                    touch.has-hover ? Theme.text : Theme.text-soft;
+                color: !root.enabled ? Theme.disabled-text :
+                    root.kind == "apply" ? Theme.apply-text : root.emphasized ? Theme.action-text :
+                    root.kind == "danger" ? (touch.has-hover ? Theme.danger : Theme.danger) :
+                    touch.has-hover ? Theme.text : Theme.secondary-text;
                 font-size: root.small ? 12px : 13px;
-                font-weight: root.kind == "primary" ? 650 : 500;
+                font-weight: root.emphasized ? 650 : 500;
                 vertical-alignment: center;
             }
         }
@@ -160,7 +137,7 @@ component IconButton inherits FocusScope {
         border-color: root.has-focus ? Theme.focus : touch.has-hover && !root.danger ? Theme.border : transparent;
         background: touch.has-hover ? (root.danger ? Theme.danger-soft : Theme.hover) : transparent;
         opacity: root.enabled ? 1 : 0.45;
-        animate background, border-color { duration: 160ms; }
+        animate background, border-color { duration: Theme.reduce-motion ? 0ms : 160ms; }
 
         touch := TouchArea {
             enabled: root.enabled;
@@ -189,8 +166,8 @@ component FieldInput inherits Rectangle {
     height: 40px;
     border-radius: 8px;
     border-width: input.has-focus ? 2px : 1px;
-    border-color: input.has-focus ? Theme.focus : touch.has-hover ? #43443d : Theme.border;
-    background: input.has-focus ? #191a17 : Theme.field;
+    border-color: input.has-focus ? Theme.focus : touch.has-hover ? Theme.secondary-border : Theme.border;
+    background: input.has-focus ? Theme.field : Theme.field;
     forward-focus: input;
 
     touch := TouchArea {
@@ -215,7 +192,7 @@ component FieldInput inherits Rectangle {
         padding-right: 12px;
         Text {
             text: root.placeholder;
-            color: #6f7068;
+            color: Theme.faint;
             font-size: 13px;
             font-family: root.mono ? "SF Mono" : "";
             vertical-alignment: center;
@@ -306,8 +283,8 @@ component EntrySwitch inherits FocusScope {
         height: 20px;
         border-radius: 12px;
         border-width: root.has-focus ? 2px : 1px;
-        border-color: root.has-focus ? Theme.focus : root.on ? #d7d3c8 : #484941;
-        background: root.on ? Theme.ivory : #34352f;
+        border-color: root.has-focus ? Theme.focus : root.on ? Theme.action-border : Theme.secondary-border;
+        background: root.on ? Theme.switch-on : Theme.disabled;
         TouchArea { clicked => root.clicked(); }
         Rectangle {
             width: 12px;
@@ -315,8 +292,8 @@ component EntrySwitch inherits FocusScope {
             x: root.on ? 18px : 3px;
             y: 3px;
             border-radius: 6px;
-            background: root.on ? #34352f : #aaa99f;
-            animate x { duration: 160ms; }
+            background: root.on ? Theme.switch-thumb : Theme.muted;
+            animate x { duration: Theme.reduce-motion ? 0ms : 160ms; }
         }
     }
 }
@@ -326,9 +303,10 @@ component ProfileRow inherits FocusScope {
     in property <int> entry-count;
     in property <bool> selected;
     in property <bool> compact: false;
+    in property <bool> show-counts: true;
     callback clicked();
     accessible-role: button;
-    accessible-label: root.profile-name + "，" + root.entry-count + " 条记录";
+    accessible-label: root.profile-name + (root.show-counts ? "，" + root.entry-count + " 条记录" : "");
     accessible-action-default => root.clicked();
 
     key-pressed(event) => {
@@ -341,12 +319,12 @@ component ProfileRow inherits FocusScope {
     }
 
     Rectangle {
-        height: root.compact ? 56px : 62px;
+        height: root.compact ? 54px : 62px;
         border-radius: 10px;
         border-width: root.has-focus || root.selected ? 1px : 0px;
-        border-color: root.has-focus ? Theme.focus : root.selected ? #393a34 : transparent;
+        border-color: root.has-focus ? Theme.focus : root.selected ? Theme.border : transparent;
         background: root.selected ? Theme.selected : touch.has-hover ? Theme.raised : transparent;
-        animate background { duration: 160ms; }
+        animate background { duration: Theme.reduce-motion ? 0ms : 160ms; }
 
         touch := TouchArea { clicked => root.clicked(); }
         if root.selected : Rectangle {
@@ -368,8 +346,8 @@ component ProfileRow inherits FocusScope {
                 height: 34px;
                 border-radius: 9px;
                 border-width: 1px;
-                border-color: root.selected ? #44453e : Theme.border;
-                background: root.selected ? #34352f : #1c1d1a;
+                border-color: root.selected ? Theme.secondary-border : Theme.border;
+                background: root.selected ? Theme.disabled : Theme.raised;
                 Image {
                     source: @image-url("assets/folder.svg");
                     width: 15px;
@@ -390,7 +368,7 @@ component ProfileRow inherits FocusScope {
                     font-weight: 600;
                     overflow: elide;
                 }
-                Text {
+                if root.show-counts : Text {
                     text: root.entry-count + " 条记录";
                     color: Theme.muted;
                     font-size: 12px;
@@ -433,7 +411,7 @@ component Segment inherits FocusScope {
         border-radius: 6px;
         border-width: root.has-focus ? 1px : 0px;
         border-color: Theme.focus;
-        background: root.active ? #30312c : transparent;
+        background: root.active ? Theme.selected : transparent;
         TouchArea { clicked => root.clicked(); }
         text-layout := Text {
             text: root.text;
@@ -447,7 +425,7 @@ component Segment inherits FocusScope {
 
 component ModalFooter inherits Rectangle {
     height: 70px;
-    background: #1a1b18;
+    background: Theme.surface;
     Rectangle {
         x: 0;
         y: 0;
@@ -499,8 +477,8 @@ component ModalFrame inherits FocusScope {
                     height: min(root.height - 48px, modal-layout.preferred-height);
                     border-radius: 16px;
                     border-width: 1px;
-                    border-color: #3a3b35;
-                    background: #1d1e1b;
+                    border-color: Theme.border;
+                    background: Theme.surface;
                     clip: true;
                     drop-shadow-blur: 70px;
                     drop-shadow-color: #0000006b;
@@ -553,7 +531,7 @@ component SummaryCell inherits Rectangle {
     border-radius: 9px;
     border-width: 1px;
     border-color: Theme.border-soft;
-    background: #181916;
+    background: Theme.sidebar;
     VerticalLayout {
         padding-top: 10px;
         padding-bottom: 10px;
@@ -591,6 +569,59 @@ component CheckLine inherits HorizontalLayout {
     }
 }
 
+export component CrabHostsTray inherits SystemTrayIcon {
+    in property <[ProfileData]> profiles;
+    in property <string> selected-name;
+    in property <string> applied-name;
+    in property <bool> show-tray: true;
+    in-out property <image> tray-icon;
+    in property <image> tray-icon-on-dark;
+    icon: Palette.color-scheme == ColorScheme.dark ? root.tray-icon-on-dark : root.tray-icon;
+    tooltip: "CrabHosts · Profile 管理";
+    visible: root.show-tray;
+
+    callback open-main();
+    callback open-settings();
+    callback profile-selected(int);
+    callback apply-current();
+    callback quit();
+
+    Menu {
+        MenuItem {
+            title: "打开 CrabHosts";
+            activated => root.open-main();
+        }
+        MenuItem {
+            title: "设置…";
+            activated => root.open-settings();
+        }
+        MenuSeparator {}
+        if root.applied-name != "" : MenuItem {
+            title: "本次已应用：" + root.applied-name;
+            enabled: false;
+        }
+        MenuItem {
+            title: "切换编辑 Profile（不会写入系统）";
+            enabled: false;
+        }
+        for profile[index] in root.profiles : MenuItem {
+            title: (profile.selected ? "✓ " : "") + profile.name + " · " + profile.entry-count + " 条";
+            activated => root.profile-selected(index);
+        }
+        MenuSeparator {}
+        MenuItem {
+            title: root.selected-name == "" ? "应用当前 Profile…" : "应用「" + root.selected-name + "」…";
+            enabled: root.selected-name != "";
+            activated => root.apply-current();
+        }
+        MenuSeparator {}
+        MenuItem {
+            title: "退出 CrabHosts";
+            activated => root.quit();
+        }
+    }
+}
+
 export component MainWindow inherits Window {
     title: "CrabHosts";
     icon: @image-url("assets/app-icon.png");
@@ -612,6 +643,19 @@ export component MainWindow inherits Window {
     in property <string> helper-status-text;
     in property <string> helper-state: "direct";
     in property <bool> helper-busy: false;
+    in-out property <string> current-view: "profiles";
+    in-out property <int> settings-section: 0;
+    in property <bool> pref-launch-at-login: false;
+    in property <bool> pref-show-tray: true;
+    in property <string> pref-close-action: "tray";
+    in-out property <bool> pref-light <=> Theme.light;
+    in property <string> pref-density: "comfortable";
+    in property <bool> pref-show-profile-counts: true;
+    in property <bool> pref-reduce-motion: false;
+    in property <int> pref-backup-retention: 20;
+    in property <string> backup-path;
+    in property <string> app-version;
+    in property <string> login-item-status: "not-installed";
     in-out property <string> system-hosts-text;
     in-out property <string> create-error;
     in-out property <int> panel-mode: 0;
@@ -621,6 +665,8 @@ export component MainWindow inherits Window {
     in-out property <bool> show-confirm: false;
     in-out property <bool> show-system-hosts: false;
     in-out property <bool> show-helper-install: false;
+    in-out property <bool> show-safety: false;
+    in-out property <bool> show-reset-preferences: false;
     in-out property <int> pending-entry: -1;
     in-out property <string> new-profile-name;
     in-out property <bool> import-from-system;
@@ -635,7 +681,17 @@ export component MainWindow inherits Window {
     callback create-profile(string, bool);
     callback delete-profile();
     callback preview-selected();
+    callback request-apply();
     callback apply-selected();
+    callback apply-cancelled();
+    in property <bool> selected-in-sync;
+    pure callback valid-entry(string, string, string) -> bool;
+    out property <bool> draft-valid: root.valid-entry(root.draft-ip, root.draft-hostnames, root.draft-comment);
+    function submit-entry() {
+        if (root.draft-valid) {
+            root.add-entry(root.draft-ip, root.draft-hostnames, root.draft-comment);
+        }
+    }
     callback add-entry(string, string, string);
     callback toggle-entry(int);
     callback remove-entry(int);
@@ -643,7 +699,18 @@ export component MainWindow inherits Window {
     callback load-system-hosts();
     callback open-system-hosts();
     callback install-helper();
+    callback preference-changed(string, string);
+    callback open-backups();
+    callback reset-preferences();
+    callback apply-finished();
 
+    property <bool> density-compact: root.pref-density == "compact";
+    init => {
+        Theme.reduce-motion = root.pref-reduce-motion;
+        Palette.color-scheme = root.pref-light ? ColorScheme.light : ColorScheme.dark;
+    }
+    changed pref-light => { Palette.color-scheme = root.pref-light ? ColorScheme.light : ColorScheme.dark; }
+    changed pref-reduce-motion => { Theme.reduce-motion = root.pref-reduce-motion; }
     property <length> viewport-width: 1080px;
     property <length> viewport-height: 760px;
     changed width => { root.viewport-width = root.width; }
@@ -651,7 +718,7 @@ export component MainWindow inherits Window {
     property <bool> compact-width: root.viewport-width <= 1120px;
     property <bool> compact-height: root.viewport-height <= 760px;
     property <length> sidebar-width: root.compact-width ? 224px : 258px;
-    property <length> content-gap: root.compact-width ? 13px : 16px;
+    property <length> content-gap: root.density-compact ? 12px : root.compact-width ? 13px : 16px;
     property <length> preview-height: root.compact-height ? 178px : 206px;
     property <length> entries-min-height: root.compact-height ? 190px : 230px;
     property <length> content-padding-top: root.compact-width ? 22px : 26px;
@@ -673,6 +740,17 @@ export component MainWindow inherits Window {
         root.helper-state == "unsupported" ? "当前平台不支持 Helper" : "直接写入（测试/演示）";
     property <string> pending-entry-summary: root.pending-entry >= 0 && root.pending-entry < root.entries.length ?
         root.entries[root.pending-entry].address + " " + root.entries[root.pending-entry].hostnames : "";
+
+    MenuBar {
+        Menu {
+            title: "CrabHosts";
+            MenuItem {
+                title: "设置…";
+                shortcut: @keys(Control + ",");
+                activated => { root.current-view = "settings"; }
+            }
+        }
+    }
 
     Rectangle {
         width: 100%;
@@ -785,12 +863,14 @@ export component MainWindow inherits Window {
                                 width: 100%;
                                 height: 100%;
                                 for profile[index] in root.profiles : ProfileRow {
-                                    height: root.compact-height ? 61px : 67px;
+                                    height: root.density-compact ? 54px : root.compact-height ? 61px : 67px;
                                     profile-name: profile.name;
                                     entry-count: profile.entry-count;
                                     selected: profile.selected;
-                                    compact: root.compact-height;
+                                    compact: root.compact-height || root.density-compact;
+                                    show-counts: root.pref-show-profile-counts;
                                     clicked => {
+                                        root.current-view = "profiles";
                                         root.profile-selected(index);
                                         root.panel-mode = 0;
                                         root.preview-selected();
@@ -804,7 +884,7 @@ export component MainWindow inherits Window {
                             border-radius: 8px;
                             border-width: 1px;
                             border-color: Theme.border-soft;
-                            background: #1a1b18;
+                            background: Theme.surface;
                             HorizontalLayout {
                                 padding-left: 9px;
                                 padding-right: 5px;
@@ -841,7 +921,7 @@ export component MainWindow inherits Window {
                             border-radius: 10px;
                             border-width: 1px;
                             border-color: Theme.border-soft;
-                            background: #1a1b18;
+                            background: Theme.surface;
                             HorizontalLayout {
                                 padding: 12px;
                                 spacing: 9px;
@@ -862,21 +942,31 @@ export component MainWindow inherits Window {
                             }
                         }
                         Rectangle { height: 14px; }
-                        AppButton {
-                            text: "查看系统 hosts";
-                            icon: @image-url("assets/file.svg");
-                            show-icon: true;
-                            button-height: 40px;
-                            width: 100%;
-                            clicked => {
-                                root.show-system-hosts = true;
-                                root.open-system-hosts();
+                        HorizontalLayout {
+                            height: 40px;
+                            spacing: 8px;
+                            AppButton {
+                                text: "查看系统 hosts";
+                                icon: @image-url("assets/file.svg");
+                                show-icon: true;
+                                button-height: 40px;
+                                horizontal-stretch: 1;
+                                clicked => {
+                                    root.show-system-hosts = true;
+                                    root.open-system-hosts();
+                                }
+                            }
+                            IconButton {
+                                icon: @image-url("assets/settings.svg");
+                                accessible-name: "打开设置";
+                                button-size: 40px;
+                                clicked => { root.current-view = "settings"; }
                             }
                         }
                     }
                     Rectangle { x: root.sidebar-width - 1px; width: 1px; height: 100%; background: Theme.border-soft; }
                 }
-                if root.selected-name == "" : Rectangle {
+                if root.current-view == "profiles" && root.selected-name == "" : Rectangle {
                     horizontal-stretch: 1;
                     background: Theme.window;
                     VerticalLayout {
@@ -921,7 +1011,7 @@ export component MainWindow inherits Window {
                         }
                     }
                 }
-                if root.selected-name != "" : main-scroll := ScrollView {
+                if root.current-view == "profiles" && root.selected-name != "" : main-scroll := ScrollView {
                     horizontal-stretch: 1;
                     height: 100%;
                     HorizontalLayout {
@@ -983,12 +1073,12 @@ export component MainWindow inherits Window {
                                     }
                                 }
                                 AppButton {
-                                    text: "应用到本机";
+                                    text: root.selected-in-sync ? "已同步" : "应用到本机";
                                     icon: @image-url("assets/check.svg");
                                     show-icon: true;
-                                    kind: "primary";
-                                    enabled: !root.helper-busy;
-                                    clicked => { root.show-confirm = true; }
+                                    kind: "apply";
+                                    enabled: !root.helper-busy && !root.selected-in-sync;
+                                    clicked => { root.request-apply(); }
                                 }
                             }
                             Rectangle {
@@ -1061,7 +1151,7 @@ export component MainWindow inherits Window {
                                             width: 100%;
                                             height: 100%;
                                             for entry[index] in root.entries : Rectangle {
-                                                height: 58px;
+                                                height: root.density-compact ? 46px : 58px;
                                                 background: row-hover.has-hover ? Theme.raised : transparent;
                                                 row-hover := TouchArea {}
                                                 HorizontalLayout {
@@ -1070,7 +1160,7 @@ export component MainWindow inherits Window {
                                                         width: 82px;
                                                         EntrySwitch {
                                                             x: 18px;
-                                                            y: 19px;
+                                                            y: (parent.height - 20px) / 2;
                                                             on: entry.enabled;
                                                             accessible-name: (entry.enabled ? "禁用 " : "启用 ") + entry.hostnames;
                                                             clicked => root.toggle-entry(index);
@@ -1119,7 +1209,7 @@ export component MainWindow inherits Window {
                                                         width: 58px;
                                                         IconButton {
                                                             x: 7px;
-                                                            y: 14px;
+                                                            y: (parent.height - 30px) / 2;
                                                             icon: @image-url("assets/trash.svg");
                                                             accessible-name: "删除 " + entry.hostnames;
                                                             button-size: 30px;
@@ -1133,10 +1223,10 @@ export component MainWindow inherits Window {
                                                     }
                                                 }
                                                 if index < root.entries.length - 1 : Rectangle {
-                                                    y: 57px;
+                                                    y: parent.height - 1px;
                                                     width: 100%;
                                                     height: 1px;
-                                                    background: #262723;
+                                                    background: Theme.hover;
                                                 }
                                             }
                                         }
@@ -1187,7 +1277,7 @@ export component MainWindow inherits Window {
                                                     placeholder: "127.0.0.1";
                                                     accessible-name: "IP 地址";
                                                     mono: true;
-                                                    submitted => root.add-entry(root.draft-ip, root.draft-hostnames, root.draft-comment);
+                                                    submitted => root.submit-entry();
                                                 }
                                             }
                                         }
@@ -1202,7 +1292,7 @@ export component MainWindow inherits Window {
                                                     placeholder: "api.local web.local";
                                                     accessible-name: "Hostname，多个使用空格分隔";
                                                     mono: true;
-                                                    submitted => root.add-entry(root.draft-ip, root.draft-hostnames, root.draft-comment);
+                                                    submitted => root.submit-entry();
                                                 }
                                             }
                                         }
@@ -1216,7 +1306,7 @@ export component MainWindow inherits Window {
                                                     text <=> root.draft-comment;
                                                     placeholder: "用途说明";
                                                     accessible-name: "备注（可选）";
-                                                    submitted => root.add-entry(root.draft-ip, root.draft-hostnames, root.draft-comment);
+                                                    submitted => root.submit-entry();
                                                 }
                                             }
                                         }
@@ -1227,11 +1317,12 @@ export component MainWindow inherits Window {
                                                 y: 19px;
                                                 width: 108px;
                                                 text: "添加记录";
+                                                enabled: root.draft-valid;
                                                 icon: @image-url("assets/plus.svg");
                                                 show-icon: true;
                                                 kind: "primary";
                                                 button-height: 40px;
-                                                clicked => root.add-entry(root.draft-ip, root.draft-hostnames, root.draft-comment);
+                                                clicked => root.submit-entry();
                                             }
                                         }
                                     }
@@ -1326,7 +1417,7 @@ export component MainWindow inherits Window {
                                                         Text {
                                                             width: 46px;
                                                             text: line.line-number + "";
-                                                            color: #5f6059;
+                                                            color: Theme.faint;
                                                             font-family: "SF Mono";
                                                             font-size: 12px;
                                                             horizontal-alignment: right;
@@ -1334,7 +1425,7 @@ export component MainWindow inherits Window {
                                                         }
                                                         Text {
                                                             text: line.text == "" ? " " : line.text;
-                                                            color: line.kind == "add" ? #b8c6b1 : line.kind == "remove" ? #d0aaa4 : #bbbcb2;
+                                                            color: line.kind == "add" ? Theme.sage : line.kind == "remove" ? Theme.danger : Theme.text-soft;
                                                             font-family: "SF Mono";
                                                             font-size: 12px;
                                                             vertical-alignment: center;
@@ -1348,7 +1439,7 @@ export component MainWindow inherits Window {
                                                 padding: 18px;
                                                 Text {
                                                     text: root.panel-text == "" ? "选择“差异预览”生成差异，或选择“系统 hosts”查看原文。" : root.panel-text;
-                                                    color: #bbbcb2;
+                                                    color: Theme.text-soft;
                                                     font-family: "SF Mono";
                                                     font-size: 12px;
                                                     wrap: no-wrap;
@@ -1383,6 +1474,27 @@ export component MainWindow inherits Window {
                             }
                         }
                     }
+                }
+                if root.current-view == "settings" : SettingsView {
+                    horizontal-stretch: 1;
+                    height: 100%;
+                    section: root.settings-section;
+                    launch-at-login: root.pref-launch-at-login;
+                    show-tray: root.pref-show-tray;
+                    close-action: root.pref-close-action;
+                    density: root.pref-density;
+                    show-profile-counts: root.pref-show-profile-counts;
+                    reduce-motion: root.pref-reduce-motion;
+                    backup-retention: root.pref-backup-retention;
+                    backup-path: root.backup-path;
+                    app-version: root.app-version;
+                    login-item-status: root.login-item-status;
+                    close => { root.current-view = "profiles"; }
+                    section-selected(index) => { root.settings-section = index; }
+                    preference-changed(key, value) => { root.preference-changed(key, value); }
+                    open-backups => { root.open-backups(); }
+                    show-safety => { root.show-safety = true; }
+                    reset-preferences => { root.show-reset-preferences = true; }
                 }
             }
         }
@@ -1529,7 +1641,7 @@ export component MainWindow inherits Window {
                 border-radius: 10px;
                 border-width: 1px;
                 border-color: Theme.border-soft;
-                background: #141512;
+                background: Theme.field;
                 ScrollView {
                     width: 100%;
                     height: 100%;
@@ -1537,7 +1649,7 @@ export component MainWindow inherits Window {
                         padding: 15px;
                         Text {
                             text: root.system-hosts-text == "" ? "正在读取…" : root.system-hosts-text;
-                            color: #c6c6bb;
+                            color: Theme.text-soft;
                             font-family: "SF Mono";
                             font-size: 12px;
                             wrap: word-wrap;
@@ -1560,7 +1672,12 @@ export component MainWindow inherits Window {
     if root.show-confirm : ModalFrame {
         title: "确认应用到本机？";
         kicker: "系统 HOSTS";
-        close => { if (!root.helper-busy) { root.show-confirm = false; } }
+        close => {
+            if (!root.helper-busy) {
+                root.show-confirm = false;
+                root.apply-cancelled();
+            }
+        }
         VerticalLayout {
             padding-top: 16px;
             padding-bottom: 22px;
@@ -1606,7 +1723,10 @@ export component MainWindow inherits Window {
                 text: "取消";
                 kind: "quiet";
                 enabled: !root.helper-busy;
-                clicked => { root.show-confirm = false; }
+                clicked => {
+                    root.show-confirm = false;
+                    root.apply-cancelled();
+                }
             }
             AppButton {
                 text: root.helper-busy ? "正在应用…" : "确认应用";
@@ -1659,6 +1779,68 @@ export component MainWindow inherits Window {
         }
     }
 
+    if root.show-safety : ModalFrame {
+        title: "安全与事实边界";
+        kicker: "CRABHOSTS";
+        wide: true;
+        close => { root.show-safety = false; }
+        VerticalLayout {
+            padding-top: 16px;
+            padding-bottom: 22px;
+            padding-left: 24px;
+            padding-right: 24px;
+            spacing: 12px;
+            CheckLine { text: "Profile 编辑与 Tray 切换不会隐式修改系统 hosts"; }
+            CheckLine { text: "真实写入需要最新差异计划、显式确认与自动备份"; }
+            CheckLine { text: "Helper 仅在安装或更新时请求管理员授权，日常写入不重复询问密码"; }
+            Text {
+                text: "桌面偏好只保存在本机 preferences.json，不进入 Profile 同步文档。备份保留数量只在桌面端成功应用后清理最旧的受管自动备份。";
+                color: Theme.muted;
+                font-size: 12px;
+                wrap: word-wrap;
+            }
+        }
+        ModalFooter {
+            AppButton { text: "知道了"; kind: "primary"; clicked => { root.show-safety = false; } }
+        }
+    }
+
+    if root.show-reset-preferences : ModalFrame {
+        title: "恢复默认偏好设置？";
+        kicker: "设置";
+        close => { root.show-reset-preferences = false; }
+        VerticalLayout {
+            padding-top: 16px;
+            padding-bottom: 22px;
+            padding-left: 24px;
+            padding-right: 24px;
+            spacing: 12px;
+            Text {
+                text: "只重置启动、Tray、外观与备份保留数量等桌面偏好。";
+                color: Theme.text-soft;
+                font-size: 13px;
+                wrap: word-wrap;
+            }
+            Text {
+                text: "不会删除 Profile，也不会修改系统 hosts。备份只在后续成功应用时按保留数量清理。";
+                color: Theme.muted;
+                font-size: 12px;
+                wrap: word-wrap;
+            }
+        }
+        ModalFooter {
+            AppButton { text: "取消"; kind: "quiet"; clicked => { root.show-reset-preferences = false; } }
+            AppButton {
+                text: "恢复默认";
+                kind: "primary";
+                clicked => {
+                    root.show-reset-preferences = false;
+                    root.reset-preferences();
+                }
+            }
+        }
+    }
+
     Timer {
         interval: 2600ms;
         running: root.toast-visible;
@@ -1671,8 +1853,8 @@ export component MainWindow inherits Window {
         height: 42px;
         border-radius: 10px;
         border-width: 1px;
-        border-color: #46473f;
-        background: #2a2b26;
+        border-color: Theme.secondary-border;
+        background: Theme.raised;
         drop-shadow-blur: 36px;
         drop-shadow-color: #00000059;
         drop-shadow-offset-y: 12px;

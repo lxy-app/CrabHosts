@@ -1,0 +1,823 @@
+import { ScrollView } from "std-widgets.slint";
+import { Theme } from "theme.slint";
+
+component SettingsButton inherits FocusScope {
+    in property <string> text;
+    in property <string> accessible-name;
+    in property <image> icon;
+    in property <bool> show-icon: false;
+    in property <string> kind: "secondary";
+    in property <bool> small: false;
+    in property <length> min-button-width: 0px;
+    callback clicked();
+
+    width: max(root.min-button-width, layout.preferred-width);
+    height: root.small ? 32px : 38px;
+    accessible-role: button;
+    accessible-label: root.accessible-name == "" ? root.text : root.accessible-name;
+    accessible-action-default => {
+        if (root.enabled) {
+            root.clicked();
+        }
+    }
+    key-pressed(event) => {
+        if (root.enabled && (event.text == Key.Return || event.text == " ")) {
+            root.clicked();
+            accept
+        } else {
+            reject
+        }
+    }
+
+    Rectangle {
+        border-radius: root.small ? 8px : 9px;
+        border-width: root.has-focus ? 2px : 1px;
+        border-color: root.has-focus ? Theme.focus :
+            root.kind == "danger" && touch.has-hover ? Theme.danger :
+            touch.has-hover ? Theme.secondary-border : Theme.border;
+        background: !root.enabled ? Theme.raised :
+            root.kind == "danger" && touch.has-hover ? Theme.danger-soft :
+            root.kind == "quiet" ? transparent :
+            touch.has-hover ? Theme.hover : Theme.raised;
+        opacity: root.enabled ? 1 : 0.45;
+        animate background, border-color { duration: Theme.reduce-motion ? 0ms : 160ms; }
+
+        touch := TouchArea {
+            enabled: root.enabled;
+            clicked => root.clicked();
+        }
+
+        layout := HorizontalLayout {
+            padding-left: root.small ? 11px : 14px;
+            padding-right: root.small ? 11px : 14px;
+            spacing: 7px;
+            alignment: center;
+            if root.show-icon : Rectangle {
+                width: 15px;
+                height: parent.height;
+                Image {
+                    source: root.icon;
+                    width: 15px;
+                    height: 15px;
+                    y: (parent.height - self.height) / 2;
+                    image-fit: contain;
+                    colorize: root.kind == "danger" ? Theme.danger : Theme.text-soft;
+                }
+            }
+            Text {
+                text: root.text;
+                color: !root.enabled ? Theme.text :
+                    root.kind == "danger" ? (touch.has-hover ? Theme.danger : Theme.danger) :
+                    touch.has-hover ? Theme.text : Theme.text-soft;
+                font-size: root.small ? 12px : 13px;
+                font-weight: 500;
+                vertical-alignment: center;
+            }
+        }
+    }
+}
+
+component SettingsSwitch inherits FocusScope {
+    in property <bool> on;
+    in property <string> accessible-name;
+    callback clicked();
+
+    width: 34px;
+    height: 20px;
+    accessible-role: checkbox;
+    accessible-label: root.accessible-name;
+    accessible-checked: root.on;
+    accessible-action-default => {
+        if (root.enabled) {
+            root.clicked();
+        }
+    }
+    key-pressed(event) => {
+        if (root.enabled && (event.text == Key.Return || event.text == " ")) {
+            root.clicked();
+            accept
+        } else {
+            reject
+        }
+    }
+
+    Rectangle {
+        width: 34px;
+        height: 20px;
+        border-radius: 12px;
+        border-width: root.has-focus ? 2px : 1px;
+        border-color: root.has-focus ? Theme.focus : root.on ? Theme.action-border : Theme.secondary-border;
+        background: root.on ? Theme.switch-on : Theme.disabled;
+        opacity: root.enabled ? 1 : 0.45;
+        TouchArea {
+            enabled: root.enabled;
+            clicked => root.clicked();
+        }
+        Rectangle {
+            width: 12px;
+            height: 12px;
+            x: root.on ? 18px : 3px;
+            y: 3px;
+            border-radius: 6px;
+            background: root.on ? Theme.switch-thumb : Theme.muted;
+            animate x { duration: Theme.reduce-motion ? 0ms : 160ms; }
+        }
+    }
+}
+
+component SettingsSegment inherits FocusScope {
+    in property <string> text;
+    in property <string> accessible-name;
+    in property <bool> active;
+    in property <length> segment-width: 88px;
+    callback clicked();
+
+    width: max(root.segment-width, segment-text.preferred-width + 22px);
+    height: 29px;
+    accessible-role: button;
+    accessible-label: root.accessible-name == "" ? root.text : root.accessible-name;
+    accessible-action-default => {
+        if (root.enabled) {
+            root.clicked();
+        }
+    }
+    key-pressed(event) => {
+        if (root.enabled && (event.text == Key.Return || event.text == " ")) {
+            root.clicked();
+            accept
+        } else {
+            reject
+        }
+    }
+
+    Rectangle {
+        border-radius: 6px;
+        border-width: root.has-focus ? 1px : 0px;
+        border-color: Theme.focus;
+        background: root.active ? Theme.selected : touch.has-hover ? Theme.hover : transparent;
+        animate background { duration: Theme.reduce-motion ? 0ms : 160ms; }
+        touch := TouchArea {
+            enabled: root.enabled;
+            clicked => root.clicked();
+        }
+        segment-text := Text {
+            text: root.text;
+            color: root.active ? Theme.text : Theme.muted;
+            font-size: 12px;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+        }
+    }
+}
+
+component SegmentedControl inherits Rectangle {
+    width: layout.preferred-width;
+    height: 35px;
+    border-radius: 8px;
+    border-width: 1px;
+    border-color: Theme.border-soft;
+    background: Theme.field;
+    layout := HorizontalLayout {
+        padding: 3px;
+        spacing: 3px;
+        @children
+    }
+}
+
+component SettingsNavButton inherits FocusScope {
+    in property <string> text;
+    in property <string> accessible-name;
+    in property <image> icon;
+    in property <bool> active;
+    callback clicked();
+
+    width: 100%;
+    height: 43px;
+    accessible-role: button;
+    accessible-label: root.accessible-name;
+    accessible-action-default => root.clicked();
+    key-pressed(event) => {
+        if (event.text == Key.Return || event.text == " ") {
+            root.clicked();
+            accept
+        } else {
+            reject
+        }
+    }
+
+    Rectangle {
+        border-radius: 9px;
+        border-width: root.has-focus ? 2px : 1px;
+        border-color: root.has-focus ? Theme.focus : root.active ? Theme.border : transparent;
+        background: root.active ? Theme.selected : touch.has-hover ? Theme.surface : transparent;
+        animate background, border-color { duration: Theme.reduce-motion ? 0ms : 160ms; }
+        touch := TouchArea { clicked => root.clicked(); }
+        HorizontalLayout {
+            padding-left: 12px;
+            padding-right: 12px;
+            spacing: 10px;
+            Rectangle {
+                width: 16px;
+                height: parent.height;
+                Image {
+                    source: root.icon;
+                    width: 16px;
+                    height: 16px;
+                    y: (parent.height - self.height) / 2;
+                    colorize: root.active ? Theme.text : Theme.muted;
+                }
+            }
+            Text {
+                text: root.text;
+                color: root.active ? Theme.text : Theme.muted;
+                font-size: 13px;
+                vertical-alignment: center;
+                horizontal-stretch: 1;
+            }
+        }
+    }
+}
+
+component SettingsCard inherits Rectangle {
+    height: card-layout.preferred-height;
+    border-radius: 12px;
+    border-width: 1px;
+    border-color: Theme.border-soft;
+    background: Theme.surface;
+    clip: true;
+    card-layout := VerticalLayout {
+        width: 100%;
+        spacing: 0;
+        @children
+    }
+}
+
+component SettingRow inherits Rectangle {
+    in property <string> title;
+    in property <string> description;
+    in property <bool> mono-title: false;
+    in property <bool> show-divider: true;
+
+    height: max(76px, row-layout.preferred-height);
+    row-layout := HorizontalLayout {
+        padding-top: 15px;
+        padding-bottom: 15px;
+        padding-left: 18px;
+        padding-right: 18px;
+        spacing: 24px;
+        VerticalLayout {
+            horizontal-stretch: 1;
+            alignment: center;
+            spacing: 5px;
+            Text {
+                text: root.title;
+                color: Theme.text-soft;
+                font-size: 13px;
+                font-weight: 550;
+                font-family: root.mono-title ? "SF Mono" : "";
+                overflow: elide;
+                wrap: root.mono-title ? no-wrap : word-wrap;
+            }
+            if root.description != "" : Text {
+                text: root.description;
+                color: Theme.muted;
+                font-size: 12px;
+                wrap: word-wrap;
+                horizontal-stretch: 1;
+            }
+        }
+        @children
+    }
+    if root.show-divider : Rectangle {
+        y: parent.height - 1px;
+        width: 100%;
+        height: 1px;
+        background: Theme.border-soft;
+    }
+}
+
+component SettingsNote inherits Rectangle {
+    in property <string> text;
+    in property <image> icon: @image-url("assets/info.svg");
+
+    height: note-layout.preferred-height;
+    border-radius: 11px;
+    border-width: 1px;
+    border-color: Theme.border-soft;
+    background: Theme.sidebar;
+    note-layout := HorizontalLayout {
+        padding: 14px;
+        spacing: 11px;
+        Rectangle {
+            width: 17px;
+            height: 20px;
+            Image {
+                source: root.icon;
+                width: 17px;
+                height: 17px;
+                colorize: Theme.sage;
+            }
+        }
+        Text {
+            text: root.text;
+            color: Theme.muted;
+            font-size: 12px;
+            wrap: word-wrap;
+            horizontal-stretch: 1;
+        }
+    }
+}
+
+component GroupTitle inherits Text {
+    color: Theme.muted;
+    font-size: 11px;
+    font-weight: 600;
+    height: 17px;
+}
+
+component LockedValue inherits HorizontalLayout {
+    in property <string> text: "始终开启";
+    spacing: 7px;
+    alignment: end;
+    Rectangle {
+        width: 15px;
+        height: 20px;
+        Image {
+            source: @image-url("assets/lock.svg");
+            width: 15px;
+            height: 15px;
+            y: 2px;
+            colorize: Theme.muted;
+        }
+    }
+    Text {
+        text: root.text;
+        color: Theme.muted;
+        font-size: 12px;
+        vertical-alignment: center;
+    }
+}
+
+component GeneralSettings inherits VerticalLayout {
+    in property <bool> launch-at-login;
+    in property <bool> show-tray;
+    in property <string> close-action;
+    in property <string> login-item-status;
+    callback preference-changed(string, string);
+
+    spacing: 0;
+    GroupTitle { text: "启动与窗口"; }
+    Rectangle { height: 8px; }
+    SettingsCard {
+        SettingRow {
+            title: "登录时启动 CrabHosts";
+            description: "登录 macOS 后自动启动 CrabHosts，无需手动打开主窗口。";
+            HorizontalLayout {
+                spacing: 11px;
+                alignment: end;
+                Text {
+                    text: root.login-item-status == "requires-approval" ? "需要系统批准" :
+                        root.login-item-status == "enabled" ? "已开启" :
+                        root.login-item-status == "unavailable" ? "暂不可用" : "未启用";
+                    color: root.login-item-status == "requires-approval" ? Theme.ivory : Theme.muted;
+                    font-size: 11px;
+                    vertical-alignment: center;
+                }
+                SettingsSwitch {
+                    on: root.launch-at-login;
+                    accessible-name: "登录时启动 CrabHosts";
+                    enabled: root.login-item-status != "unavailable";
+                    clicked => root.preference-changed("launch-at-login", root.launch-at-login ? "false" : "true");
+                }
+            }
+        }
+        SettingRow {
+            title: "显示菜单栏图标";
+            description: "通过 Tray 快速切换编辑 Profile、打开主窗口或进入设置。";
+            SettingsSwitch {
+                on: root.show-tray;
+                accessible-name: "显示菜单栏图标";
+                clicked => root.preference-changed("show-tray", root.show-tray ? "false" : "true");
+            }
+        }
+        SettingRow {
+            title: "关闭主窗口时";
+            description: "隐藏到菜单栏不会退出应用，也不会自动应用当前 Profile。";
+            show-divider: false;
+            SegmentedControl {
+                SettingsSegment {
+                    text: "隐藏到菜单栏";
+                    accessible-name: "关闭主窗口时-隐藏到菜单栏";
+                    active: root.close-action == "tray";
+                    clicked => root.preference-changed("close-action", "tray");
+                }
+                SettingsSegment {
+                    text: "退出应用";
+                    accessible-name: "关闭主窗口时-退出应用";
+                    active: root.close-action == "quit";
+                    clicked => root.preference-changed("close-action", "quit");
+                }
+            }
+        }
+    }
+    Rectangle { height: 16px; }
+    GroupTitle { text: "Profile 与系统写入"; }
+    Rectangle { height: 8px; }
+    SettingsNote {
+        icon: @image-url("assets/shield.svg");
+        text: "Tray 是导航入口，不是免确认写入通道。选择 Profile 只会切换编辑对象；应用时仍需在主窗口查看新的差异预览并明确确认。";
+    }
+}
+
+component AppearanceSettings inherits VerticalLayout {
+    in property <string> density;
+    in property <bool> show-profile-counts;
+    in property <bool> reduce-motion;
+    callback preference-changed(string, string);
+
+    spacing: 0;
+    GroupTitle { text: "界面"; }
+    Rectangle { height: 8px; }
+    SettingsCard {
+        SettingRow {
+            title: "主题";
+            description: "切换后立即生效，并记住这台设备的选择。";
+            SegmentedControl {
+                SettingsSegment {
+                    text: "浅色";
+                    accessible-name: "主题-浅色";
+                    active: Theme.light;
+                    clicked => root.preference-changed("theme", "light");
+                }
+                SettingsSegment {
+                    text: "深色";
+                    accessible-name: "主题-深色";
+                    active: !Theme.light;
+                    clicked => root.preference-changed("theme", "dark");
+                }
+            }
+        }
+        SettingRow {
+            title: "界面密度";
+            description: "紧凑模式减少记录行高和区间距，适合较小屏幕。";
+            SegmentedControl {
+                SettingsSegment {
+                    text: "舒适";
+                    accessible-name: "界面密度-舒适";
+                    active: root.density == "comfortable";
+                    clicked => root.preference-changed("density", "comfortable");
+                }
+                SettingsSegment {
+                    text: "紧凑";
+                    accessible-name: "界面密度-紧凑";
+                    active: root.density == "compact";
+                    clicked => root.preference-changed("density", "compact");
+                }
+            }
+        }
+        SettingRow {
+            title: "在侧栏显示记录数";
+            description: "隐藏后仍可在 Profile 标题和 Tray 中查看记录数量。";
+            SettingsSwitch {
+                on: root.show-profile-counts;
+                accessible-name: "在侧栏显示记录数";
+                clicked => root.preference-changed("show-profile-counts", root.show-profile-counts ? "false" : "true");
+            }
+        }
+        SettingRow {
+            title: "减少动态效果";
+            description: "关闭按钮、开关与选中状态的过渡，减少不必要的动态效果。";
+            show-divider: false;
+            SettingsSwitch {
+                on: root.reduce-motion;
+                accessible-name: "减少动态效果";
+                clicked => root.preference-changed("reduce-motion", root.reduce-motion ? "false" : "true");
+            }
+        }
+    }
+}
+
+component BackupSettings inherits VerticalLayout {
+    in property <int> backup-retention;
+    in property <string> backup-path;
+    callback preference-changed(string, string);
+    callback open-backups();
+
+    spacing: 0;
+    GroupTitle { text: "系统写入保护"; }
+    Rectangle { height: 8px; }
+    SettingsCard {
+        SettingRow {
+            title: "应用前明确确认";
+            description: "所有系统 hosts 写入都需要在主窗口确认；此保护不可关闭。";
+            LockedValue {}
+        }
+        SettingRow {
+            title: "写入前自动备份";
+            description: "仅替换 CrabHosts 托管区块，保留非托管内容；此保护不可关闭。";
+            LockedValue {}
+        }
+        SettingRow {
+            title: "保留备份数量";
+            description: "达到上限后优先清理最旧的自动备份，不影响手动导出的文件。";
+            show-divider: false;
+            SegmentedControl {
+                SettingsSegment {
+                    text: "10 份";
+                    accessible-name: "备份保留-10";
+                    segment-width: 58px;
+                    active: root.backup-retention == 10;
+                    clicked => root.preference-changed("backup-retention", "10");
+                }
+                SettingsSegment {
+                    text: "20 份";
+                    accessible-name: "备份保留-20";
+                    segment-width: 58px;
+                    active: root.backup-retention == 20;
+                    clicked => root.preference-changed("backup-retention", "20");
+                }
+                SettingsSegment {
+                    text: "50 份";
+                    accessible-name: "备份保留-50";
+                    segment-width: 58px;
+                    active: root.backup-retention == 50;
+                    clicked => root.preference-changed("backup-retention", "50");
+                }
+            }
+        }
+    }
+    Rectangle { height: 16px; }
+    GroupTitle { text: "备份位置"; }
+    Rectangle { height: 8px; }
+    SettingsCard {
+        SettingRow {
+            title: root.backup-path == "" ? "尚未确定备份目录" : root.backup-path;
+            description: "自动备份仅保存在此设备，不参与 Profile 同步。";
+            mono-title: true;
+            show-divider: false;
+            SettingsButton {
+                text: "在 Finder 中显示";
+                accessible-name: "在 Finder 中显示";
+                icon: @image-url("assets/folder.svg");
+                show-icon: true;
+                small: true;
+                clicked => root.open-backups();
+            }
+        }
+    }
+}
+
+component AboutSettings inherits VerticalLayout {
+    in property <string> app-version;
+    callback show-safety();
+    callback reset-preferences();
+
+    spacing: 0;
+    GroupTitle { text: "应用信息"; }
+    Rectangle { height: 8px; }
+    SettingsCard {
+        Rectangle {
+            height: 98px;
+            HorizontalLayout {
+                padding-left: 18px;
+                padding-right: 18px;
+                spacing: 14px;
+                Rectangle {
+                    width: 48px;
+                    height: 48px;
+                    y: 25px;
+                    border-radius: 13px;
+                    border-width: 1px;
+                    border-color: Theme.border;
+                    background: Theme.raised;
+                    Image {
+                        source: @image-url("assets/crab.svg");
+                        width: 30px;
+                        height: 30px;
+                        x: 9px;
+                        y: 9px;
+                        colorize: Theme.ivory;
+                    }
+                }
+                VerticalLayout {
+                    horizontal-stretch: 1;
+                    alignment: center;
+                    spacing: 5px;
+                    Text {
+                        text: "CrabHosts";
+                        color: Theme.text;
+                        font-size: 20px;
+                        font-weight: 650;
+                    }
+                    Text {
+                        text: "安全、清晰的 hosts Profile 管理工具";
+                        color: Theme.muted;
+                        font-size: 12px;
+                        wrap: word-wrap;
+                    }
+                }
+                Text {
+                    text: "v" + root.app-version;
+                    color: Theme.muted;
+                    font-family: "SF Mono";
+                    font-size: 11px;
+                    vertical-alignment: center;
+                }
+            }
+            Rectangle {
+                y: parent.height - 1px;
+                width: 100%;
+                height: 1px;
+                background: Theme.border-soft;
+            }
+        }
+        SettingRow {
+            title: "安全与事实边界";
+            description: "查看系统写入、设备本地偏好与安全保护说明。";
+            show-divider: false;
+            SettingsButton {
+                text: "查看说明";
+                accessible-name: "查看安全说明";
+                small: true;
+                clicked => root.show-safety();
+            }
+        }
+    }
+    Rectangle { height: 16px; }
+    GroupTitle { text: "偏好设置"; }
+    Rectangle { height: 8px; }
+    SettingsCard {
+        SettingRow {
+            title: "恢复默认偏好设置";
+            description: "只重置应用偏好，不删除 Profile、备份或系统 hosts 内容。";
+            show-divider: false;
+            SettingsButton {
+                text: "恢复默认";
+                accessible-name: "恢复默认偏好设置";
+                kind: "danger";
+                small: true;
+                clicked => root.reset-preferences();
+            }
+        }
+    }
+}
+
+export component SettingsView inherits Rectangle {
+    in property <int> section: 0;
+    in property <bool> launch-at-login: false;
+    in property <bool> show-tray: true;
+    in property <bool> show-profile-counts: true;
+    in property <bool> reduce-motion: false;
+    in property <string> close-action: "tray";
+    in property <string> density: "comfortable";
+    in property <string> backup-path;
+    in property <string> app-version;
+    in property <string> login-item-status: "not-installed";
+    in property <int> backup-retention: 20;
+
+    callback close();
+    callback section-selected(int);
+    callback preference-changed(string, string);
+    callback open-backups();
+    callback show-safety();
+    callback reset-preferences();
+
+    property <bool> compact-layout: root.width <= 820px;
+    background: Theme.window;
+    clip: true;
+
+    settings-scroll := ScrollView {
+        width: 100%;
+        height: 100%;
+        HorizontalLayout {
+            width: settings-scroll.width;
+            height: max(settings-scroll.height, content-layout.preferred-height);
+            alignment: center;
+            content-layout := VerticalLayout {
+                width: min(1180px, settings-scroll.width);
+                padding-top: root.compact-layout ? 22px : 28px;
+                padding-bottom: root.compact-layout ? 24px : 30px;
+                padding-left: root.compact-layout ? 20px : 30px;
+                padding-right: root.compact-layout ? 20px : 30px;
+                spacing: 0;
+
+                HorizontalLayout {
+                    height: 62px;
+                    spacing: 18px;
+                    VerticalLayout {
+                        horizontal-stretch: 1;
+                        alignment: center;
+                        spacing: 5px;
+                        Text {
+                            text: "CrabHosts 偏好";
+                            color: Theme.muted;
+                            font-size: 11px;
+                            font-weight: 600;
+                        }
+                        Text {
+                            text: "设置";
+                            color: Theme.text;
+                            font-size: 28px;
+                            font-weight: 650;
+                        }
+                    }
+                    if !root.compact-layout : HorizontalLayout {
+                        spacing: 7px;
+                        alignment: end;
+                        Rectangle {
+                            width: 14px;
+                            height: 38px;
+                            Image {
+                                source: @image-url("assets/check.svg");
+                                width: 14px;
+                                height: 14px;
+                                y: 12px;
+                                colorize: Theme.sage;
+                            }
+                        }
+                        Text {
+                            text: "更改即时生效 · 仅保存在此设备";
+                            color: Theme.muted;
+                            font-size: 11px;
+                            vertical-alignment: center;
+                        }
+                    }
+                    SettingsButton {
+                        text: "返回 Profiles";
+                        accessible-name: "返回 Profiles";
+                        icon: @image-url("assets/back.svg");
+                        show-icon: true;
+                        kind: "quiet";
+                        clicked => root.close();
+                    }
+                }
+                Rectangle { height: 22px; }
+                HorizontalLayout {
+                    horizontal-stretch: 1;
+                    spacing: root.compact-layout ? 14px : 20px;
+                    VerticalLayout {
+                        width: root.compact-layout ? 154px : 184px;
+                        spacing: 5px;
+                        alignment: start;
+                        SettingsNavButton {
+                            text: "通用";
+                            accessible-name: "设置-通用";
+                            icon: @image-url("assets/settings.svg");
+                            active: root.section == 0;
+                            clicked => root.section-selected(0);
+                        }
+                        SettingsNavButton {
+                            text: "外观";
+                            accessible-name: "设置-外观";
+                            icon: @image-url("assets/sun.svg");
+                            active: root.section == 1;
+                            clicked => root.section-selected(1);
+                        }
+                        SettingsNavButton {
+                            text: "备份与安全";
+                            accessible-name: "设置-备份与安全";
+                            icon: @image-url("assets/archive.svg");
+                            active: root.section == 2;
+                            clicked => root.section-selected(2);
+                        }
+                        SettingsNavButton {
+                            text: "关于";
+                            accessible-name: "设置-关于";
+                            icon: @image-url("assets/info.svg");
+                            active: root.section == 3;
+                            clicked => root.section-selected(3);
+                        }
+                    }
+                    VerticalLayout {
+                        horizontal-stretch: 1;
+                        alignment: start;
+                        if root.section == 0 : GeneralSettings {
+                            launch-at-login: root.launch-at-login;
+                            show-tray: root.show-tray;
+                            close-action: root.close-action;
+                            login-item-status: root.login-item-status;
+                            preference-changed(key, value) => root.preference-changed(key, value);
+                        }
+                        if root.section == 1 : AppearanceSettings {
+                            density: root.density;
+                            show-profile-counts: root.show-profile-counts;
+                            reduce-motion: root.reduce-motion;
+                            preference-changed(key, value) => root.preference-changed(key, value);
+                        }
+                        if root.section == 2 : BackupSettings {
+                            backup-retention: root.backup-retention;
+                            backup-path: root.backup-path;
+                            preference-changed(key, value) => root.preference-changed(key, value);
+                            open-backups => root.open-backups();
+                        }
+                        if root.section == 3 : AboutSettings {
+                            app-version: root.app-version;
+                            show-safety => root.show-safety();
+                            reset-preferences => root.reset-preferences();
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
