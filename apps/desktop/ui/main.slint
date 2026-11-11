@@ -21,6 +21,11 @@ export struct PreviewLineData {
     kind: string,
 }
 
+component CenteredControl inherits VerticalLayout {
+    alignment: center;
+    @children
+}
+
 component AppButton inherits FocusScope {
     in property <string> text;
     in property <string> accessible-name;
@@ -639,6 +644,8 @@ export component MainWindow inherits Window {
     in property <string> status;
     in property <string> panel-text;
     in property <string> panel-label;
+    in property <string> panel-stats: "";
+    in property <int> panel-line-count: 0;
     in property <string> system-hosts-path;
     in property <string> helper-status-text;
     in property <string> helper-state: "direct";
@@ -656,14 +663,17 @@ export component MainWindow inherits Window {
     in property <string> backup-path;
     in property <string> app-version;
     in property <string> login-item-status: "not-installed";
-    in-out property <string> system-hosts-text;
     in-out property <string> create-error;
     in-out property <int> panel-mode: 0;
+    in-out property <bool> show-preview-viewer: false;
+    in-out property <bool> viewer-opened: false;
+    in-out property <bool> preview-wrap: false;
+    in-out property <bool> preview-gutter: true;
     in-out property <bool> show-create: false;
     in-out property <bool> show-delete-confirm: false;
     in-out property <bool> show-remove-entry: false;
+    in-out property <bool> show-import-confirm: false;
     in-out property <bool> show-confirm: false;
-    in-out property <bool> show-system-hosts: false;
     in-out property <bool> show-helper-install: false;
     in-out property <bool> show-safety: false;
     in-out property <bool> show-reset-preferences: false;
@@ -697,7 +707,7 @@ export component MainWindow inherits Window {
     callback remove-entry(int);
     callback import-selected-from-system();
     callback load-system-hosts();
-    callback open-system-hosts();
+    callback copy-preview();
     callback install-helper();
     callback preference-changed(string, string);
     callback open-backups();
@@ -719,7 +729,15 @@ export component MainWindow inherits Window {
     property <bool> compact-height: root.viewport-height <= 760px;
     property <length> sidebar-width: root.compact-width ? 224px : 258px;
     property <length> content-gap: root.density-compact ? 12px : root.compact-width ? 13px : 16px;
-    property <length> preview-height: root.compact-height ? 178px : 206px;
+    property <length> preview-height: root.compact-height ? 232px : 272px;
+    property <int> preview-inline-lines: root.compact-height ? 6 : 8;
+    function open-preview-viewer() {
+        root.viewer-opened = true;
+        root.show-preview-viewer = true;
+    }
+    function close-preview-viewer() {
+        root.show-preview-viewer = false;
+    }
     property <length> entries-min-height: root.compact-height ? 190px : 230px;
     property <length> content-padding-top: root.compact-width ? 22px : 26px;
     property <length> content-padding-bottom: root.compact-width ? 16px : 18px;
@@ -728,6 +746,9 @@ export component MainWindow inherits Window {
         54px - 126px - root.preview-height - 20px - 4 * root.content-gap);
     property <length> content-height: root.content-padding-top + root.content-padding-bottom +
         54px + root.entries-height + 126px + root.preview-height + 20px + 4 * root.content-gap;
+    property <bool> modal-open: root.show-create || root.show-delete-confirm || root.show-remove-entry ||
+        root.show-import-confirm || root.show-confirm || root.show-helper-install || root.show-safety ||
+        root.show-reset-preferences;
     property <bool> helper-mode: root.helper-state != "direct" && root.helper-state != "unsupported";
     property <bool> helper-actionable: root.helper-state == "not_installed" || root.helper-state == "requires_approval" || root.helper-state == "unavailable";
     property <bool> apply-allowed: !root.helper-busy && (root.helper-state == "direct" || root.helper-state == "ready");
@@ -748,6 +769,19 @@ export component MainWindow inherits Window {
                 title: "设置…";
                 shortcut: @keys(Control + ",");
                 activated => { root.current-view = "settings"; }
+            }
+            MenuItem {
+                title: "全屏预览";
+                shortcut: @keys(Control + Shift + F);
+                activated => {
+                    if (root.current-view == "profiles" && !root.modal-open) {
+                        if (root.show-preview-viewer) {
+                            root.show-preview-viewer = false;
+                        } else {
+                            root.open-preview-viewer();
+                        }
+                    }
+                }
             }
         }
     }
@@ -952,8 +986,9 @@ export component MainWindow inherits Window {
                                 button-height: 40px;
                                 horizontal-stretch: 1;
                                 clicked => {
-                                    root.show-system-hosts = true;
-                                    root.open-system-hosts();
+                                    root.panel-mode = 1;
+                                    root.load-system-hosts();
+                                    root.open-preview-viewer();
                                 }
                             }
                             IconButton {
@@ -1374,6 +1409,12 @@ export component MainWindow inherits Window {
                                             }
                                         }
                                         Rectangle { horizontal-stretch: 1; }
+                                        Text {
+                                            text: root.panel-stats;
+                                            color: Theme.faint;
+                                            font-size: 11px;
+                                            vertical-alignment: center;
+                                        }
                                         Rectangle {
                                             width: 15px;
                                             height: 50px;
@@ -1395,7 +1436,26 @@ export component MainWindow inherits Window {
                                                 show-icon: true;
                                                 kind: "quiet";
                                                 small: true;
-                                                clicked => root.import-selected-from-system();
+                                                // 导入会合并并落盘 Profile，先确认再执行，避免误点直接改数据。
+                                                clicked => { root.show-import-confirm = true; }
+                                            }
+                                        }
+                                        VerticalLayout {
+                                            height: 50px;
+                                            alignment: center;
+                                            if root.viewer-opened && !root.show-preview-viewer : Rectangle {
+                                                width: 0;
+                                                height: 0;
+                                                init => { preview-expand.focus(); }
+                                            }
+                                            preview-expand := AppButton {
+                                                text: "全屏";
+                                                icon: @image-url("assets/expand.svg");
+                                                show-icon: true;
+                                                kind: "quiet";
+                                                small: true;
+                                                accessible-name: "全屏查看差异预览";
+                                                clicked => { root.open-preview-viewer(); }
                                             }
                                         }
                                     }
@@ -1403,39 +1463,37 @@ export component MainWindow inherits Window {
                                     Rectangle {
                                         vertical-stretch: 1;
                                         background: Theme.field;
-                                        ScrollView {
-                                            width: 100%;
-                                            height: 100%;
-                                            if root.panel-mode == 0 && root.preview-lines.length > 0 : VerticalLayout {
-                                                padding-top: 12px;
-                                                padding-bottom: 12px;
-                                                for line in root.preview-lines : Rectangle {
-                                                    height: 22px;
-                                                    background: line.kind == "add" ? #80977814 : line.kind == "remove" ? #a66c6314 : transparent;
-                                                    HorizontalLayout {
-                                                        spacing: 0;
-                                                        Text {
-                                                            width: 46px;
-                                                            text: line.line-number + "";
-                                                            color: Theme.faint;
-                                                            font-family: "SF Mono";
-                                                            font-size: 12px;
-                                                            horizontal-alignment: right;
-                                                            vertical-alignment: center;
-                                                        }
-                                                        Text {
-                                                            text: line.text == "" ? " " : line.text;
-                                                            color: line.kind == "add" ? Theme.sage : line.kind == "remove" ? Theme.danger : Theme.text-soft;
-                                                            font-family: "SF Mono";
-                                                            font-size: 12px;
-                                                            vertical-alignment: center;
-                                                            wrap: no-wrap;
-                                                            horizontal-stretch: 1;
-                                                        }
+                                        clip: true;
+                                        VerticalLayout {
+                                            padding-top: 6px;
+                                            for line[index] in root.preview-lines : Rectangle {
+                                                height: index < root.preview-inline-lines ? 22px : 0px;
+                                                visible: index < root.preview-inline-lines;
+                                                background: line.kind == "add" ? #80977814 : line.kind == "remove" ? #a66c6314 : transparent;
+                                                HorizontalLayout {
+                                                    spacing: 0;
+                                                    Text {
+                                                        width: 46px;
+                                                        text: line.line-number + "";
+                                                        color: Theme.faint;
+                                                        font-family: "SF Mono";
+                                                        font-size: 12px;
+                                                        horizontal-alignment: right;
+                                                        vertical-alignment: center;
+                                                    }
+                                                    Rectangle { width: 13px; }
+                                                    Text {
+                                                        text: line.text == "" ? " " : line.text;
+                                                        color: line.kind == "add" ? Theme.sage : line.kind == "remove" ? Theme.danger : Theme.text-soft;
+                                                        font-family: "SF Mono";
+                                                        font-size: 12px;
+                                                        vertical-alignment: center;
+                                                        wrap: no-wrap;
+                                                        horizontal-stretch: 1;
                                                     }
                                                 }
                                             }
-                                            if root.panel-mode == 1 || root.preview-lines.length == 0 : VerticalLayout {
+                                            if root.preview-lines.length == 0 : VerticalLayout {
                                                 padding: 18px;
                                                 Text {
                                                     text: root.panel-text == "" ? "选择“差异预览”生成差异，或选择“系统 hosts”查看原文。" : root.panel-text;
@@ -1444,6 +1502,41 @@ export component MainWindow inherits Window {
                                                     font-size: 12px;
                                                     wrap: no-wrap;
                                                 }
+                                            }
+                                        }
+                                        Rectangle {
+                                            y: parent.height - self.height;
+                                            width: 100%;
+                                            height: 10px;
+                                            background: @linear-gradient(180deg, #00000000 0%, Theme.field 100%);
+                                        }
+                                    }
+                                    Rectangle {
+                                        height: 30px;
+                                        background: Theme.sidebar;
+                                        Rectangle { y: 0; width: 100%; height: 1px; background: Theme.border-soft; }
+                                        HorizontalLayout {
+                                            padding-left: 18px;
+                                            padding-right: 14px;
+                                            spacing: 8px;
+                                            Text {
+                                                text: root.panel-line-count <= root.preview-inline-lines
+                                                    ? "共 " + root.panel-line-count + " 行 · 已全部显示"
+                                                    : "共 " + root.panel-line-count + " 行 · 仅显示前 " + root.preview-inline-lines + " 行";
+                                                color: Theme.faint;
+                                                font-size: 11px;
+                                                vertical-alignment: center;
+                                                horizontal-stretch: 1;
+                                            }
+                                            AppButton {
+                                                text: "全屏查看";
+                                                icon: @image-url("assets/expand.svg");
+                                                show-icon: true;
+                                                kind: "quiet";
+                                                small: true;
+                                                button-height: 24px;
+                                                accessible-name: "全屏查看完整预览";
+                                                clicked => { root.open-preview-viewer(); }
                                             }
                                         }
                                     }
@@ -1618,54 +1711,45 @@ export component MainWindow inherits Window {
         }
     }
 
-    if root.show-system-hosts : ModalFrame {
-        title: "系统 hosts";
-        kicker: "只读预览";
-        wide: true;
-        close => { root.show-system-hosts = false; }
+    if root.show-import-confirm : ModalFrame {
+        title: "导入系统 hosts 记录？";
+        kicker: "导入确认";
+        close => { root.show-import-confirm = false; }
         VerticalLayout {
             padding-top: 16px;
             padding-bottom: 22px;
             padding-left: 24px;
             padding-right: 24px;
-            spacing: 10px;
+            spacing: 12px;
             Text {
-                text: root.system-hosts-path + " · 只读";
+                text: "将把系统 hosts 中的记录合并到 Profile「" + root.selected-name + "」。";
+                color: Theme.text-soft;
+                font-size: 13px;
+                wrap: word-wrap;
+            }
+            Text {
+                text: "同 IP 且启用状态一致的记录会合并 Hostname；其余记录按新记录加入。";
                 color: Theme.muted;
-                font-family: "SF Mono";
                 font-size: 12px;
-                overflow: elide;
-            }
-            Rectangle {
-                height: max(160px, min(340px, root.viewport-height - 301px));
-                border-radius: 10px;
-                border-width: 1px;
-                border-color: Theme.border-soft;
-                background: Theme.field;
-                ScrollView {
-                    width: 100%;
-                    height: 100%;
-                    VerticalLayout {
-                        padding: 15px;
-                        Text {
-                            text: root.system-hosts-text == "" ? "正在读取…" : root.system-hosts-text;
-                            color: Theme.text-soft;
-                            font-family: "SF Mono";
-                            font-size: 12px;
-                            wrap: word-wrap;
-                        }
-                    }
-                }
+                wrap: word-wrap;
             }
             Text {
-                text: "修改系统 hosts 请通过 Profile 预览并确认应用，CrabHosts 不会隐式写入。";
+                text: "只会修改 CrabHosts 保存的 Profile，不会修改系统 hosts。";
                 color: Theme.muted;
                 font-size: 12px;
                 wrap: word-wrap;
             }
         }
         ModalFooter {
-            AppButton { text: "关闭"; kind: "primary"; clicked => { root.show-system-hosts = false; } }
+            AppButton { text: "取消"; kind: "quiet"; clicked => { root.show-import-confirm = false; } }
+            AppButton {
+                text: "确认导入";
+                kind: "primary";
+                clicked => {
+                    root.show-import-confirm = false;
+                    root.import-selected-from-system();
+                }
+            }
         }
     }
 
@@ -1836,6 +1920,287 @@ export component MainWindow inherits Window {
                 clicked => {
                     root.show-reset-preferences = false;
                     root.reset-preferences();
+                }
+            }
+        }
+    }
+
+    if root.show-preview-viewer : FocusScope {
+        init => { self.focus(); }
+        key-pressed(event) => {
+            if event.text == Key.Escape {
+                root.close-preview-viewer();
+                accept
+            } else {
+                reject
+            }
+        }
+        Rectangle {
+            width: 100%;
+            height: 100%;
+            background: #050605bd;
+            TouchArea { clicked => { root.close-preview-viewer(); } }
+            Rectangle {
+                x: (parent.width - self.width) / 2;
+                y: (parent.height - self.height) / 2;
+                width: min(1180px, root.width - (root.compact-width ? 32px : 48px));
+                height: min(860px, root.height - (root.compact-height ? 32px : 48px));
+                border-radius: 16px;
+                border-width: 1px;
+                border-color: Theme.border;
+                background: Theme.surface;
+                clip: true;
+                drop-shadow-blur: 70px;
+                drop-shadow-color: #00000080;
+                drop-shadow-offset-y: 24px;
+                TouchArea {}
+                VerticalLayout {
+                    spacing: 0;
+                    Rectangle {
+                        height: root.compact-height ? 60px : 68px;
+                        background: Theme.surface;
+                        HorizontalLayout {
+                            padding-left: 22px;
+                            padding-right: 18px;
+                            spacing: 16px;
+                            VerticalLayout {
+                                horizontal-stretch: 1;
+                                spacing: 6px;
+                                alignment: center;
+                                Text {
+                                    text: "只读预览 · 不会写入系统 hosts";
+                                    color: Theme.muted;
+                                    font-size: 11px;
+                                }
+                                HorizontalLayout {
+                                    spacing: 10px;
+                                    Text {
+                                        text: root.panel-mode == 0 ? "差异预览" : "系统 hosts";
+                                        color: Theme.text;
+                                        font-size: 19px;
+                                        font-weight: 650;
+                                        vertical-alignment: center;
+                                    }
+                                    Rectangle {
+                                        width: max(28px, min(240px, viewer-profile.preferred-width + 20px));
+                                        height: 22px;
+                                        border-radius: 6px;
+                                        border-width: 1px;
+                                        border-color: Theme.border;
+                                        background: transparent;
+                                        clip: true;
+                                        viewer-profile := Text {
+                                            width: parent.width;
+                                            text: root.panel-mode == 0 ? root.selected-name : root.system-hosts-path;
+                                            color: Theme.text-soft;
+                                            font-size: 11px;
+                                            horizontal-alignment: center;
+                                            vertical-alignment: center;
+                                            overflow: elide;
+                                        }
+                                    }
+                                    Rectangle {
+                                        width: 15px;
+                                        height: 22px;
+                                        Image {
+                                            source: @image-url("assets/lock.svg");
+                                            width: 15px;
+                                            height: 15px;
+                                            y: (parent.height - self.height) / 2;
+                                            colorize: Theme.muted;
+                                        }
+                                    }
+                                    Text { text: "只读"; color: Theme.muted; font-size: 11px; vertical-alignment: center; }
+                                }
+                            }
+                            CenteredControl {
+                                Rectangle {
+                                    width: 34px;
+                                    height: 22px;
+                                    border-radius: 5px;
+                                    border-width: 1px;
+                                    border-color: Theme.border;
+                                    background: Theme.field;
+                                    Text {
+                                        text: "Esc";
+                                        color: Theme.muted;
+                                        font-size: 10px;
+                                        horizontal-alignment: center;
+                                        vertical-alignment: center;
+                                    }
+                                }
+                            }
+                            CenteredControl {
+                                IconButton {
+                                    icon: @image-url("assets/close.svg");
+                                    accessible-name: "关闭全屏预览";
+                                    clicked => { root.close-preview-viewer(); }
+                                }
+                            }
+                        }
+                    }
+                    Rectangle { height: 1px; background: Theme.border-soft; }
+                    Rectangle {
+                        height: root.compact-height ? 46px : 52px;
+                        background: Theme.sidebar;
+                        HorizontalLayout {
+                            padding-left: 22px;
+                            padding-right: 18px;
+                            spacing: 12px;
+                            VerticalLayout {
+                                alignment: center;
+                                Rectangle {
+                                    height: 37px;
+                                    border-radius: 9px;
+                                    border-width: 1px;
+                                    border-color: Theme.border-soft;
+                                    background: Theme.field;
+                                    HorizontalLayout {
+                                        padding: 3px;
+                                        spacing: 3px;
+                                        Segment {
+                                            text: "差异预览";
+                                            active: root.panel-mode == 0;
+                                            clicked => {
+                                                root.panel-mode = 0;
+                                                root.preview-selected();
+                                            }
+                                        }
+                                        Segment {
+                                            text: "系统 hosts";
+                                            active: root.panel-mode == 1;
+                                            clicked => {
+                                                root.panel-mode = 1;
+                                                root.load-system-hosts();
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            Rectangle { horizontal-stretch: 1; }
+                            CenteredControl {
+                                AppButton {
+                                    text: "自动换行";
+                                    icon: @image-url("assets/wrap.svg");
+                                    show-icon: true;
+                                    kind: root.preview-wrap ? "secondary" : "quiet";
+                                    small: true;
+                                    accessible-name: "自动换行";
+                                    clicked => { root.preview-wrap = !root.preview-wrap; }
+                                }
+                            }
+                            CenteredControl {
+                                AppButton {
+                                    text: "行号";
+                                    icon: @image-url("assets/hash.svg");
+                                    show-icon: true;
+                                    kind: root.preview-gutter ? "secondary" : "quiet";
+                                    small: true;
+                                    accessible-name: "显示行号";
+                                    clicked => { root.preview-gutter = !root.preview-gutter; }
+                                }
+                            }
+                            CenteredControl {
+                                AppButton {
+                                    text: "复制";
+                                    icon: @image-url("assets/copy.svg");
+                                    show-icon: true;
+                                    kind: "quiet";
+                                    small: true;
+                                    accessible-name: "复制预览内容";
+                                    clicked => { root.copy-preview(); }
+                                }
+                            }
+                        }
+                    }
+                    Rectangle { height: 1px; background: Theme.border-soft; }
+                    Rectangle {
+                        vertical-stretch: 1;
+                        background: Theme.field;
+                        ScrollView {
+                            width: 100%;
+                            height: 100%;
+                            VerticalLayout {
+                                padding-top: 10px;
+                                padding-bottom: 20px;
+                                padding-left: 8px;
+                                padding-right: 14px;
+                                for line in root.preview-lines : Rectangle {
+                                    height: root.preview-wrap ? max(22px, viewer-line.preferred-height) : 22px;
+                                    background: line.kind == "add" ? #80977814 : line.kind == "remove" ? #a66c6314 : transparent;
+                                    viewer-line := HorizontalLayout {
+                                        spacing: 0;
+                                        if root.preview-gutter : Text {
+                                            width: 56px;
+                                            text: line.line-number + "";
+                                            color: Theme.faint;
+                                            font-family: "SF Mono";
+                                            font-size: 12px;
+                                            horizontal-alignment: right;
+                                            vertical-alignment: top;
+                                        }
+                                        if root.preview-gutter : Rectangle { width: 8px; }
+                                        VerticalLayout {
+                                            horizontal-stretch: 1;
+                                            Text {
+                                                text: line.text == "" ? " " : line.text;
+                                                color: line.kind == "add" ? Theme.sage : line.kind == "remove" ? Theme.danger : Theme.text-soft;
+                                                font-family: "SF Mono";
+                                                font-size: 12px;
+                                                vertical-alignment: top;
+                                                wrap: root.preview-wrap ? word-wrap : no-wrap;
+                                            }
+                                        }
+                                    }
+                                }
+                                if root.preview-lines.length == 0 : VerticalLayout {
+                                    padding: 18px;
+                                    Text {
+                                        text: root.panel-text == "" ? "选择“差异预览”生成差异，或选择“系统 hosts”查看原文。" : root.panel-text;
+                                        color: Theme.text-soft;
+                                        font-family: "SF Mono";
+                                        font-size: 12px;
+                                        wrap: word-wrap;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    Rectangle {
+                        height: 46px;
+                        background: Theme.sidebar;
+                        Rectangle { y: 0; width: 100%; height: 1px; background: Theme.border-soft; }
+                        HorizontalLayout {
+                            padding-left: 20px;
+                            padding-right: 20px;
+                            spacing: 9px;
+                            Rectangle { width: 5px; height: 5px; border-radius: 3px; background: Theme.sage; }
+                            Text {
+                                text: root.panel-mode == 0
+                                    ? "只读预览 · 修改仍需回到主窗口确认应用"
+                                    : "只读预览 · 系统 hosts 原文不会被修改";
+                                color: Theme.muted;
+                                font-size: 11px;
+                                vertical-alignment: center;
+                                overflow: elide;
+                                horizontal-stretch: 1;
+                            }
+                            Text {
+                                text: root.panel-stats;
+                                color: Theme.text-soft;
+                                font-size: 11px;
+                                vertical-alignment: center;
+                            }
+                            Text {
+                                text: "系统 hosts：" + root.system-hosts-path;
+                                color: Theme.faint;
+                                font-size: 11px;
+                                vertical-alignment: center;
+                                overflow: elide;
+                                max-width: 300px;
+                            }
+                        }
+                    }
                 }
             }
         }

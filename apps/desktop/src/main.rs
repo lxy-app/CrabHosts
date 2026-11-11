@@ -675,15 +675,16 @@ fn wire(window: &MainWindow, state: Rc<RefCell<UiState>>) {
         });
     }
     {
-        let state = Rc::clone(&state);
         let weak = window.as_weak();
-        window.on_open_system_hosts(move || {
+        window.on_copy_preview(move || {
             if let Some(window) = weak.upgrade() {
-                let text = match state.borrow().storage.read_hosts() {
-                    Ok(content) => content,
-                    Err(error) => format!("读取系统 hosts 失败：{error}"),
-                };
-                window.set_system_hosts_text(text.into());
+                let text = window.get_panel_text().to_string();
+                let copied =
+                    arboard::Clipboard::new().and_then(|mut clipboard| clipboard.set_text(text));
+                match copied {
+                    Ok(()) => toast(&window, "已复制预览内容".into()),
+                    Err(error) => toast(&window, format!("复制预览内容失败：{error}")),
+                }
             }
         });
     }
@@ -843,10 +844,14 @@ fn sync_login_item_status(window: &MainWindow, state: &Rc<RefCell<UiState>>) {
     window.set_login_item_status(status.as_str().into());
 }
 
-fn notify(window: &MainWindow, message: String) {
-    window.set_status(message.clone().into());
+fn toast(window: &MainWindow, message: String) {
     window.set_toast_text(message.into());
     window.set_toast_visible(true);
+}
+
+fn notify(window: &MainWindow, message: String) {
+    window.set_status(message.clone().into());
+    toast(window, message);
 }
 
 fn open_backups(window: &MainWindow, state: &Rc<RefCell<UiState>>) {
@@ -1393,22 +1398,47 @@ fn rebuild(window: &MainWindow, state: &UiState) {
 }
 
 fn update_panel_text(window: &MainWindow, text: &str) {
+    set_panel_content(window, text, false);
+}
+
+fn update_panel_raw_text(window: &MainWindow, text: &str) {
+    set_panel_content(window, text, true);
+}
+
+fn set_panel_content(window: &MainWindow, text: &str, raw: bool) {
     window.set_panel_text(text.into());
+    let mut added = 0;
+    let mut removed = 0;
     let lines = text
         .lines()
         .enumerate()
-        .map(|(index, line)| PreviewLineData {
-            text: line.into(),
-            line_number: index as i32 + 1,
-            kind: if line.starts_with('+') && !line.starts_with("+++") {
-                "add".into()
+        .map(|(index, line)| {
+            let kind = if line.starts_with('+') && !line.starts_with("+++") {
+                added += 1;
+                "add"
             } else if line.starts_with('-') && !line.starts_with("---") {
-                "remove".into()
+                removed += 1;
+                "remove"
             } else {
-                "context".into()
-            },
+                "context"
+            };
+            PreviewLineData {
+                text: line.into(),
+                line_number: index as i32 + 1,
+                kind: kind.into(),
+            }
         })
         .collect::<Vec<_>>();
+    let line_count = lines.len();
+    window.set_panel_line_count(line_count as i32);
+    window.set_panel_stats(
+        if raw {
+            format!("共 {line_count} 行")
+        } else {
+            format!("共 {line_count} 行 · +{added} −{removed}")
+        }
+        .into(),
+    );
     window.set_preview_lines(ModelRc::new(VecModel::from(lines)));
 }
 
@@ -1421,9 +1451,9 @@ fn load_system_hosts(window: &MainWindow, state: &Rc<RefCell<UiState>>) {
             } else {
                 content
             };
-            update_panel_text(window, &text);
+            update_panel_raw_text(window, &text);
         }
-        Err(error) => update_panel_text(window, &format!("读取系统 hosts 失败：{error}")),
+        Err(error) => update_panel_raw_text(window, &format!("读取系统 hosts 失败：{error}")),
     }
 }
 
@@ -1574,21 +1604,50 @@ mod tests {
         window.invoke_remove_entry(2);
         assert_eq!(window.get_entries().row_count(), 2);
 
-        window.invoke_import_selected_from_system();
+        // 导入必须经过确认：点击只打开确认层，取消不会改数据。
+        assert!(!window.get_show_import_confirm());
+        activate(&window, "从系统 hosts 导入");
+        assert!(window.get_show_import_confirm());
+        assert_laid_out(&window, "确认导入");
+        assert_eq!(window.get_entries().row_count(), 2);
+        assert_eq!(
+            state.borrow().storage.load().unwrap().profiles[0]
+                .entries
+                .len(),
+            2,
+            "取消导入不得写入 Profile"
+        );
+        assert!(!window.get_status().contains("合并"));
+        window.set_show_import_confirm(false);
+        assert_eq!(window.get_entries().row_count(), 2);
+
+        activate(&window, "从系统 hosts 导入");
+        assert!(window.get_show_import_confirm());
+        activate(&window, "确认导入");
+        assert!(!window.get_show_import_confirm());
         assert_eq!(window.get_entries().row_count(), 2);
         assert!(window.get_status().contains("合并"));
 
         window.invoke_load_system_hosts();
         assert!(window.get_panel_text().contains("localhost"));
         assert_eq!(window.get_panel_label(), "系统 hosts 原文（只读）");
+        assert!(window.get_panel_stats().starts_with("共 "));
+        assert!(!window.get_panel_stats().contains('+'));
+        assert_eq!(
+            window.get_panel_line_count() as usize,
+            window.get_panel_text().lines().count()
+        );
 
-        window.invoke_open_system_hosts();
-        assert!(window.get_system_hosts_text().contains("localhost"));
-        assert!(window.get_system_hosts_path().ends_with("hosts"));
-
+        window
+            .window()
+            .set_size(slint::LogicalSize::new(1080.0, 1000.0));
         window.invoke_preview_selected();
         assert_eq!(window.get_panel_label(), "差异预览（只读）");
         assert!(window.get_panel_text().contains("CrabHosts managed"));
+        assert!(window.get_panel_stats().contains("· +"));
+        assert!(window.get_panel_line_count() > 0);
+        assert_laid_out(&window, "全屏查看差异预览");
+        assert_laid_out(&window, "全屏查看完整预览");
 
         request_apply_from_tray(&window, &state);
         assert!(window.get_show_confirm());
@@ -1783,8 +1842,96 @@ mod tests {
         );
         assert!(!window.get_pref_light());
         capture_if_requested(&window, "profiles-main");
+        window
+            .window()
+            .set_size(slint::LogicalSize::new(1080.0, 1000.0));
+
+        window.invoke_preview_selected();
+        assert_laid_out(&window, "全屏查看差异预览");
+        assert_laid_out(&window, "全屏查看完整预览");
+        capture_if_requested(&window, "profiles-preview-inline");
+        activate(&window, "从系统 hosts 导入");
+        assert!(window.get_show_import_confirm());
+        capture_if_requested(&window, "import-confirm");
+        window.set_show_import_confirm(false);
+        activate(&window, "全屏查看差异预览");
+        assert!(window.get_show_preview_viewer());
+        assert_laid_out(&window, "关闭全屏预览");
+        assert_laid_out(&window, "自动换行");
+        assert_laid_out(&window, "显示行号");
+        assert_laid_out(&window, "复制预览内容");
+        capture_if_requested(&window, "preview-viewer-diff");
+        window
+            .window()
+            .dispatch_event(slint::platform::WindowEvent::KeyPressed {
+                text: slint::platform::Key::Escape.into(),
+            });
+        assert!(
+            !window.get_show_preview_viewer(),
+            "Escape must close the fullscreen preview"
+        );
+        activate(&window, "全屏查看完整预览");
+        assert!(window.get_show_preview_viewer());
+        window.set_preview_wrap(true);
+        window.set_preview_gutter(false);
+        capture_if_requested(&window, "preview-viewer-wrap");
+        window.set_preview_wrap(false);
+        window.set_preview_gutter(true);
+        window.set_panel_mode(1);
+        window.invoke_load_system_hosts();
+        assert!(window.get_panel_stats().starts_with("共 "));
+        assert!(!window.get_panel_stats().contains('+'));
+        assert!(window.get_panel_text().contains("localhost"));
+        capture_if_requested(&window, "preview-viewer-system");
+
+        // Synthetic long preview for scroll/wrap visuals only; the real plan is restored below.
+        let long_lines = (1..=40)
+            .map(|index| {
+                let aliases = if index == 3 {
+                    "alias-a.company.local alias-b.company.local alias-c.company.local alias-d.company.local alias-e.company.local alias-f.company.local alias-g.company.local alias-h.company.local"
+                } else {
+                    "short.local"
+                };
+                PreviewLineData {
+                    text: format!("+10.0.0.{index} host-{index}.internal.company.local {aliases}").into(),
+                    line_number: index,
+                    kind: if index % 8 == 0 { "remove".into() } else { "add".into() },
+                }
+            })
+            .collect::<Vec<_>>();
+        window.set_panel_mode(0);
+        window.set_panel_stats(format!("共 40 行 · +35 −5").into());
+        window.set_panel_line_count(40);
+        window.set_preview_lines(ModelRc::new(VecModel::from(long_lines)));
+        window.set_preview_wrap(false);
+        capture_if_requested(&window, "preview-viewer-long");
+        window.set_preview_wrap(true);
+        capture_if_requested(&window, "preview-viewer-long-wrap");
+        window.set_show_preview_viewer(false);
+        assert!(!window.get_show_preview_viewer());
+        window.set_preview_wrap(false);
+        window.set_panel_mode(0);
+        window.invoke_preview_selected();
+        assert_eq!(fs::read_to_string(&hosts).unwrap(), original);
+
+        window
+            .window()
+            .set_size(slint::LogicalSize::new(900.0, 620.0));
+        window.set_show_preview_viewer(true);
+        capture_if_requested(&window, "preview-viewer-compact");
+        assert_laid_out(&window, "关闭全屏预览");
+        window.set_show_preview_viewer(false);
+        capture_if_requested(&window, "profiles-compact");
+
+        window
+            .window()
+            .set_size(slint::LogicalSize::new(1080.0, 760.0));
         window.invoke_preference_changed("theme".into(), "light".into());
         capture_if_requested(&window, "profiles-light");
+        window.invoke_preview_selected();
+        window.set_show_preview_viewer(true);
+        capture_if_requested(&window, "preview-viewer-light");
+        window.set_show_preview_viewer(false);
         window.set_current_view("settings".into());
         window.set_settings_section(0);
         window
