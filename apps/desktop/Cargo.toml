@@ -17,6 +17,7 @@ crabhosts-system-client = { path = "../../crates/system-client" }
 serde.workspace = true
 serde_json.workspace = true
 slint.workspace = true
+arboard = { version = "3.7", default-features = false }
 # Internal Slint crate, pinned to the Slint version, enabled by the `ui-tests` feature.
 i-slint-backend-testing = { version = "=1.18.1", optional = true, features = ["renderer-software"] }
 image = { version = "0.25", default-features = false, features = ["png"] }
