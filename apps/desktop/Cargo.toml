@@ -14,17 +14,22 @@ ui-tests = ["dep:i-slint-backend-testing"]
 [dependencies]
 crabhosts-core = { path = "../../crates/core" }
 crabhosts-system-client = { path = "../../crates/system-client" }
+serde.workspace = true
+serde_json.workspace = true
 slint.workspace = true
 # Internal Slint crate, pinned to the Slint version, enabled by the `ui-tests` feature.
-i-slint-backend-testing = { version = "=1.18.1", optional = true }
+i-slint-backend-testing = { version = "=1.18.1", optional = true, features = ["renderer-software"] }
+image = { version = "0.25", default-features = false, features = ["png"] }
 
 [target.'cfg(target_os = "macos")'.dependencies]
 objc2 = "0.6"
 objc2-app-kit = { version = "0.3", default-features = false, features = ["std", "NSApplication", "NSImage", "NSResponder"] }
 objc2-foundation = { version = "0.3", default-features = false, features = ["std", "NSData"] }
+objc2-service-management = { version = "0.3.2", default-features = false, features = ["std", "SMAppService", "block2", "objc2", "objc2-foundation"] }
 
 [build-dependencies]
 slint-build.workspace = true
 
 [dev-dependencies]
+png = "0.18"
 tempfile.workspace = true

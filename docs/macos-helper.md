@@ -98,6 +98,8 @@ AI 不直接连接 XPC，不调用安装接口，不添加 `sudo`，也不把 pr
 - 桌面端完成真实 apply，写入前备份为 `20261108T152216Z-dd2ce08c`；随后 dry-run 返回 `changed: false`，当前哈希与目标哈希一致。
 - 首次 apply 曾出现“写入成功但响应为冲突”的结果确认异常；共享客户端已增加精确内容核对，并以模拟丢失响应测试确保不会重复写入。
 
-尚未覆盖：macOS 13 实机/VM、Developer ID 发布包的 Apple 公证、System Settings 撤销、重启持久性、Helper 更新和 x86_64/universal 包。本次使用开发签名，不作为正式发布验收。
+2026-11-10，包含当前桌面端实装的 arm64 包已使用 Developer ID Application、hardened runtime 和 secure timestamp 完成签名，Apple 公证返回 `Accepted`，并已附加公证票据。Gatekeeper 返回 `accepted` / `Notarized Developer ID`；最终 ZIP 解压后再次通过签名、票据和 Gatekeeper 复验。该结果只覆盖当时的 arm64 分发快照；后续代码变更必须重新打包和公证，也不替代以下平台与生命周期验收。
+
+尚未覆盖：macOS 13 实机/VM、System Settings 撤销、重启持久性、Helper 更新和 x86_64/universal 包。2026-11-08 的开发签名包不作为正式发布验收。
 
 参考：[SMAppService](https://developer.apple.com/documentation/servicemanagement/smappservice)、[SecCodeCreateWithXPCMessage](https://developer.apple.com/documentation/security/seccodecreatewithxpcmessage(_:_:_:))、Apple [TN3127](https://developer.apple.com/documentation/technotes/tn3127-inside-code-signing-requirements)。
