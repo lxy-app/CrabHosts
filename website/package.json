@@ -1,0 +1,23 @@
+{
+  "name": "@crabhosts/website",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "CrabHosts product website",
+  "scripts": {
+    "dev": "next dev --hostname 127.0.0.1 --port 5174",
+    "build": "next build",
+    "typecheck": "next typegen && tsc --noEmit"
+  },
+  "dependencies": {
+    "next": "16.4.3",
+    "react": "19.3.1",
+    "react-dom": "19.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "typescript": "^5.9.3"
+  }
+}
