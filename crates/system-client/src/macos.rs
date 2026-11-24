@@ -265,7 +265,8 @@ mod tests {
 
     #[test]
     fn status_uses_the_current_protocol() {
-        let response = dispatch_request(r#"{"status":{"protocol_version":1}}"#);
+        let request = format!(r#"{{"status":{{"protocol_version":{HELPER_PROTOCOL_VERSION}}}}}"#);
+        let response = dispatch_request(&request);
         assert!(matches!(response, HelperResponse::Status(_)));
     }
 

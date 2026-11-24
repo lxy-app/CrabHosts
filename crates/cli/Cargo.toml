@@ -7,7 +7,7 @@ rust-version.workspace = true
 authors.workspace = true
 
 [[bin]]
-name = "crabhosts"
+name = "crab"
 path = "src/main.rs"
 
 [dependencies]

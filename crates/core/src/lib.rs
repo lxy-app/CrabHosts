@@ -1,5 +1,6 @@
 //! CrabHosts' UI-independent domain model and safe system hosts operations.
 
+mod activation;
 mod backup;
 mod error;
 mod model;
@@ -10,6 +11,7 @@ mod storage;
 mod system;
 mod system_writer;
 
+pub use activation::{ACTIVATION_SCHEMA_VERSION, ActivationState};
 pub use backup::{BackupMetadata, BackupStore};
 pub use error::{Error, Result};
 pub use model::{Document, HostEntry, Profile, validate_hostname};
@@ -20,5 +22,8 @@ pub use privileged::{
     MAX_HOSTS_BYTES, execute_privileged_write,
 };
 pub use storage::{Storage, atomic_write, sha256_hex};
-pub use system::{ApplyReport, SystemPlan, apply_plan, plan_profile, plan_restore};
+pub use system::{
+    ApplyReport, ConflictMapping, HostConflict, SystemPlan, apply_plan, plan_profile,
+    plan_profiles, plan_restore, render_profiles,
+};
 pub use system_writer::write_system_hosts;

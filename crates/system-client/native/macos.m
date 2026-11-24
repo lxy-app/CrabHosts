@@ -72,13 +72,32 @@ int crabhosts_helper_register(char **error) {
         SMAppServiceStatus initialStatus = service.status;
         NSError *nativeError = nil;
         if (initialStatus == SMAppServiceStatusEnabled) {
-            // Explicit repair/update action. Replacing the executable requires re-registration.
-            if (![service unregisterAndReturnError:&nativeError]) {
-                CHSetNSError(error, nativeError);
+            // Replacing an enabled daemon requires asynchronous unregistration. Calling register
+            // immediately after the synchronous unregister variant races ServiceManagement and
+            // can make the first update attempt fail with "Operation not permitted".
+            dispatch_semaphore_t unregistered = dispatch_semaphore_create(0);
+            __block NSError *unregisterError = nil;
+            [service unregisterWithCompletionHandler:^(NSError *completionError) {
+                unregisterError = completionError;
+                dispatch_semaphore_signal(unregistered);
+            }];
+            long waitResult = dispatch_semaphore_wait(
+                unregistered, dispatch_time(DISPATCH_TIME_NOW, 15 * NSEC_PER_SEC));
+            if (waitResult != 0) {
+                CHSetError(error, @"Timed out waiting for the existing CrabHosts Helper to unregister; no re-registration was attempted");
+                return -1;
+            }
+            if (unregisterError != nil) {
+                CHSetNSError(error, unregisterError);
                 return -1;
             }
         }
         if (![service registerAndReturnError:&nativeError]) {
+            // A first registration may be waiting for the user's approval in System Settings.
+            // Preserve that normal state instead of presenting it as a failed installation.
+            if (service.status == SMAppServiceStatusRequiresApproval) {
+                return (int)SMAppServiceStatusRequiresApproval;
+            }
             CHSetNSError(error, nativeError);
             return -1;
         }

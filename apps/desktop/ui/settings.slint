@@ -15,6 +15,7 @@ component SettingsButton inherits FocusScope {
     height: root.small ? 32px : 38px;
     accessible-role: button;
     accessible-label: root.accessible-name == "" ? root.text : root.accessible-name;
+    accessible-enabled: root.enabled;
     accessible-action-default => {
         if (root.enabled) {
             root.clicked();
@@ -136,6 +137,7 @@ component SettingsSegment inherits FocusScope {
     height: 29px;
     accessible-role: button;
     accessible-label: root.accessible-name == "" ? root.text : root.accessible-name;
+    accessible-enabled: root.enabled;
     accessible-action-default => {
         if (root.enabled) {
             root.clicked();
@@ -363,7 +365,9 @@ component GeneralSettings inherits VerticalLayout {
     in property <bool> show-tray;
     in property <string> close-action;
     in property <string> login-item-status;
+    in property <bool> cli-available: false;
     callback preference-changed(string, string);
+    callback install-cli();
 
     spacing: 0;
     GroupTitle { text: "启动与窗口"; }
@@ -421,6 +425,25 @@ component GeneralSettings inherits VerticalLayout {
         }
     }
     Rectangle { height: 16px; }
+    GroupTitle { text: "命令行"; }
+    Rectangle { height: 8px; }
+    SettingsCard {
+        SettingRow {
+            title: "crab 命令行工具";
+            description: root.cli-available ?
+                "建议先将应用固定到 /Applications。创建指向当前应用的 ~/.local/bin/crab，并在 ~/.zprofile 配置 zsh PATH；无需管理员权限，不修改系统 hosts。" :
+                "命令行安装仅在包含 crab 的签名 CrabHosts.app 中可用。";
+            show-divider: false;
+            SettingsButton {
+                text: "安装到 PATH";
+                accessible-name: "安装 crab 到 PATH";
+                enabled: root.cli-available;
+                small: true;
+                clicked => root.install-cli();
+            }
+        }
+    }
+    Rectangle { height: 16px; }
     GroupTitle { text: "Profile 与系统写入"; }
     Rectangle { height: 8px; }
     SettingsNote {
@@ -431,8 +454,10 @@ component GeneralSettings inherits VerticalLayout {
 
 component AppearanceSettings inherits VerticalLayout {
     in property <string> density;
+    in property <string> theme: "system";
     in property <bool> show-profile-counts;
-    in property <bool> reduce-motion;
+    in property <string> reduce-motion-preference: "system";
+    in property <bool> system-reduce-motion: false;
     callback preference-changed(string, string);
 
     spacing: 0;
@@ -441,18 +466,26 @@ component AppearanceSettings inherits VerticalLayout {
     SettingsCard {
         SettingRow {
             title: "主题";
-            description: "切换后立即生效，并记住这台设备的选择。";
+            description: root.theme == "system" ?
+                (Theme.light ? "跟随系统外观（当前为浅色），系统切换后自动更新。" : "跟随系统外观（当前为深色），系统切换后自动更新。") :
+                "切换后立即生效，并记住这台设备的选择。";
             SegmentedControl {
+                SettingsSegment {
+                    text: "跟随系统";
+                    accessible-name: "主题-跟随系统";
+                    active: root.theme == "system";
+                    clicked => root.preference-changed("theme", "system");
+                }
                 SettingsSegment {
                     text: "浅色";
                     accessible-name: "主题-浅色";
-                    active: Theme.light;
+                    active: root.theme == "light";
                     clicked => root.preference-changed("theme", "light");
                 }
                 SettingsSegment {
                     text: "深色";
                     accessible-name: "主题-深色";
-                    active: !Theme.light;
+                    active: root.theme == "dark";
                     clicked => root.preference-changed("theme", "dark");
                 }
             }
@@ -486,12 +519,29 @@ component AppearanceSettings inherits VerticalLayout {
         }
         SettingRow {
             title: "减少动态效果";
-            description: "关闭按钮、开关与选中状态的过渡，减少不必要的动态效果。";
+            description: root.reduce-motion-preference == "system" ?
+                (root.system-reduce-motion ? "跟随 macOS 辅助功能设置（当前已开启）。" : "跟随 macOS 辅助功能设置（当前已关闭）。") :
+                "关闭按钮、开关与选中状态的过渡，减少不必要的动态效果。";
             show-divider: false;
-            SettingsSwitch {
-                on: root.reduce-motion;
-                accessible-name: "减少动态效果";
-                clicked => root.preference-changed("reduce-motion", root.reduce-motion ? "false" : "true");
+            SegmentedControl {
+                SettingsSegment {
+                    text: "跟随系统";
+                    accessible-name: "减少动态效果-跟随系统";
+                    active: root.reduce-motion-preference == "system";
+                    clicked => root.preference-changed("reduce-motion", "system");
+                }
+                SettingsSegment {
+                    text: "开启";
+                    accessible-name: "减少动态效果-开启";
+                    active: root.reduce-motion-preference == "always";
+                    clicked => root.preference-changed("reduce-motion", "always");
+                }
+                SettingsSegment {
+                    text: "关闭";
+                    accessible-name: "减少动态效果-关闭";
+                    active: root.reduce-motion-preference == "never";
+                    clicked => root.preference-changed("reduce-motion", "never");
+                }
             }
         }
     }
@@ -649,7 +699,7 @@ component AboutSettings inherits VerticalLayout {
     SettingsCard {
         SettingRow {
             title: "恢复默认偏好设置";
-            description: "只重置应用偏好，不删除 Profile、备份或系统 hosts 内容。";
+            description: "只重置应用偏好，不删除 Profile 或系统 hosts；备份上限降低时会先确认。";
             show-divider: false;
             SettingsButton {
                 text: "恢复默认";
@@ -667,18 +717,22 @@ export component SettingsView inherits Rectangle {
     in property <bool> launch-at-login: false;
     in property <bool> show-tray: true;
     in property <bool> show-profile-counts: true;
-    in property <bool> reduce-motion: false;
+    in property <string> theme: "system";
+    in property <string> reduce-motion-preference: "system";
+    in property <bool> system-reduce-motion: false;
     in property <string> close-action: "tray";
     in property <string> density: "comfortable";
     in property <string> backup-path;
     in property <string> app-version;
     in property <string> login-item-status: "not-installed";
+    in property <bool> cli-available: false;
     in property <int> backup-retention: 20;
 
     callback close();
     callback section-selected(int);
     callback preference-changed(string, string);
     callback open-backups();
+    callback install-cli();
     callback show-safety();
     callback reset-preferences();
 
@@ -722,16 +776,19 @@ export component SettingsView inherits Rectangle {
                         }
                     }
                     if !root.compact-layout : HorizontalLayout {
+                        height: 38px;
                         spacing: 7px;
-                        alignment: end;
+                        alignment: center;
                         Rectangle {
                             width: 14px;
                             height: 38px;
+                            horizontal-stretch: 0;
                             Image {
                                 source: @image-url("assets/check.svg");
                                 width: 14px;
                                 height: 14px;
-                                y: 12px;
+                                y: (parent.height - self.height) / 2;
+                                image-fit: contain;
                                 colorize: Theme.sage;
                             }
                         }
@@ -796,12 +853,16 @@ export component SettingsView inherits Rectangle {
                             show-tray: root.show-tray;
                             close-action: root.close-action;
                             login-item-status: root.login-item-status;
+                            cli-available: root.cli-available;
                             preference-changed(key, value) => root.preference-changed(key, value);
+                            install-cli => root.install-cli();
                         }
                         if root.section == 1 : AppearanceSettings {
                             density: root.density;
+                            theme: root.theme;
                             show-profile-counts: root.show-profile-counts;
-                            reduce-motion: root.reduce-motion;
+                            reduce-motion-preference: root.reduce-motion-preference;
+                            system-reduce-motion: root.system-reduce-motion;
                             preference-changed(key, value) => root.preference-changed(key, value);
                         }
                         if root.section == 2 : BackupSettings {

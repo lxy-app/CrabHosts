@@ -3,12 +3,16 @@ import { Theme } from "theme.slint";
 import { SettingsView } from "settings.slint";
 
 export struct ProfileData {
+    id: string,
     name: string,
     entry-count: int,
     selected: bool,
+    active: bool,
 }
 
 export struct EntryData {
+    id: string,
+    selected: bool,
     address: string,
     hostnames: string,
     enabled: bool,
@@ -32,16 +36,24 @@ component AppButton inherits FocusScope {
     in property <image> icon;
     in property <bool> show-icon: false;
     in property <string> kind: "secondary";
+    in property <bool> solid: false;
     in property <bool> small: false;
+    in property <bool> initial-focus: false;
     in property <length> button-height: root.small ? 32px : 38px;
     in property <length> min-button-width: 0px;
     callback clicked();
 
-    property <bool> emphasized: root.kind == "primary" || root.kind == "apply";
+    property <bool> emphasized: root.kind == "primary" || root.kind == "apply" || (root.kind == "danger" && root.solid);
+    init => {
+        if (root.initial-focus) {
+            root.focus();
+        }
+    }
     width: max(root.min-button-width, layout.preferred-width);
     height: root.button-height;
     accessible-role: button;
     accessible-label: root.accessible-name == "" ? root.text : root.accessible-name;
+    accessible-enabled: root.enabled;
     accessible-action-default => {
         if (root.enabled) {
             root.clicked();
@@ -61,10 +73,12 @@ component AppButton inherits FocusScope {
         border-radius: root.small ? 8px : 9px;
         border-width: root.has-focus ? 2px : 1px;
         border-color: !root.enabled ? Theme.border : root.has-focus ? Theme.focus :
+            root.kind == "danger" && root.solid ? Theme.danger :
             root.emphasized ? Theme.action-border :
             root.kind == "danger" && touch.has-hover ? Theme.danger : Theme.secondary-border;
         background: !root.enabled ? Theme.disabled :
             root.kind == "apply" ? (touch.has-hover ? Theme.apply-hover : Theme.apply) :
+            root.kind == "danger" && root.solid ? (touch.has-hover ? Theme.danger-hover : Theme.danger) :
             root.emphasized ? (touch.has-hover ? Theme.action-hover : Theme.action) :
             root.kind == "danger" && touch.has-hover ? Theme.danger-soft :
             root.kind == "quiet" ? transparent :
@@ -91,15 +105,19 @@ component AppButton inherits FocusScope {
                     y: (parent.height - self.height) / 2;
                     image-fit: contain;
                     colorize: !root.enabled ? Theme.disabled-text :
-                        root.kind == "apply" ? Theme.apply-text : root.emphasized ? Theme.action-text :
+                        root.kind == "apply" ? Theme.apply-text :
+                        root.kind == "danger" && root.solid ? Theme.danger-ink :
+                        root.emphasized ? Theme.action-text :
                         root.kind == "danger" ? Theme.danger : Theme.secondary-text;
                 }
             }
             Text {
                 text: root.text;
                 color: !root.enabled ? Theme.disabled-text :
-                    root.kind == "apply" ? Theme.apply-text : root.emphasized ? Theme.action-text :
-                    root.kind == "danger" ? (touch.has-hover ? Theme.danger : Theme.danger) :
+                    root.kind == "apply" ? Theme.apply-text :
+                    root.kind == "danger" && root.solid ? Theme.danger-ink :
+                    root.emphasized ? Theme.action-text :
+                    root.kind == "danger" ? Theme.danger :
                     touch.has-hover ? Theme.text : Theme.secondary-text;
                 font-size: root.small ? 12px : 13px;
                 font-weight: root.emphasized ? 650 : 500;
@@ -166,8 +184,14 @@ component FieldInput inherits Rectangle {
     in property <string> placeholder;
     in property <string> accessible-name;
     in property <bool> mono: false;
+    in property <bool> initial-focus: false;
     callback submitted();
 
+    init => {
+        if (root.initial-focus) {
+            input.focus();
+        }
+    }
     height: 40px;
     border-radius: 8px;
     border-width: input.has-focus ? 2px : 1px;
@@ -210,22 +234,24 @@ component AppCheckBox inherits FocusScope {
     in-out property <bool> checked;
     in property <string> label;
     in property <string> description;
+    callback toggle();
+    toggle => { root.checked = !root.checked; }
     height: root.description == "" ? 22px : 46px;
     accessible-role: checkbox;
     accessible-label: root.label;
     accessible-checked: root.checked;
-    accessible-action-default => { root.checked = !root.checked; }
+    accessible-action-default => { root.toggle(); }
 
     key-pressed(event) => {
         if (event.text == Key.Return || event.text == " ") {
-            root.checked = !root.checked;
+            root.toggle();
             accept
         } else {
             reject
         }
     }
 
-    TouchArea { clicked => { root.checked = !root.checked; } }
+    TouchArea { clicked => { root.toggle(); } }
     HorizontalLayout {
         spacing: 10px;
         Rectangle {
@@ -245,7 +271,7 @@ component AppCheckBox inherits FocusScope {
                 colorize: Theme.ivory-ink;
             }
         }
-        VerticalLayout {
+        if root.label != "" : VerticalLayout {
             spacing: 3px;
             Text {
                 text: root.label;
@@ -272,7 +298,12 @@ component EntrySwitch inherits FocusScope {
     accessible-role: checkbox;
     accessible-label: root.accessible-name;
     accessible-checked: root.on;
-    accessible-action-default => root.clicked();
+    accessible-enabled: root.enabled;
+    accessible-action-default => {
+        if (root.enabled) {
+            root.clicked();
+        }
+    }
 
     key-pressed(event) => {
         if (event.text == Key.Return || event.text == " ") {
@@ -290,7 +321,10 @@ component EntrySwitch inherits FocusScope {
         border-width: root.has-focus ? 2px : 1px;
         border-color: root.has-focus ? Theme.focus : root.on ? Theme.action-border : Theme.secondary-border;
         background: root.on ? Theme.switch-on : Theme.disabled;
-        TouchArea { clicked => root.clicked(); }
+        TouchArea {
+            enabled: root.enabled;
+            clicked => root.clicked();
+        }
         Rectangle {
             width: 12px;
             height: 12px;
@@ -307,9 +341,12 @@ component ProfileRow inherits FocusScope {
     in property <string> profile-name;
     in property <int> entry-count;
     in property <bool> selected;
+    in property <bool> active;
+    in property <bool> activation-enabled: true;
     in property <bool> compact: false;
     in property <bool> show-counts: true;
     callback clicked();
+    callback active-toggled();
     accessible-role: button;
     accessible-label: root.profile-name + (root.show-counts ? "，" + root.entry-count + " 条记录" : "");
     accessible-action-default => root.clicked();
@@ -379,7 +416,7 @@ component ProfileRow inherits FocusScope {
                     font-size: 12px;
                 }
             }
-            if root.selected : Rectangle {
+            if root.active : Rectangle {
                 width: 10px;
                 height: 34px;
                 Rectangle {
@@ -390,6 +427,12 @@ component ProfileRow inherits FocusScope {
                     border-radius: 3px;
                     background: Theme.sage;
                 }
+            }
+            EntrySwitch {
+                on: root.active;
+                enabled: root.activation-enabled;
+                accessible-name: "Profile 启用：" + root.profile-name;
+                clicked => root.active-toggled();
             }
         }
     }
@@ -452,10 +495,19 @@ component ModalFrame inherits FocusScope {
     in property <string> title;
     in property <string> kicker: "CrabHosts";
     in property <bool> wide: false;
+    in property <bool> destructive: false;
+    in property <string> dialog-description;
     callback close();
     width: 100%;
     height: 100%;
-    init => root.focus();
+    accessible-role: groupbox;
+    accessible-label: root.title;
+    accessible-description: root.dialog-description;
+    init => {
+        if (!root.destructive) {
+            root.focus();
+        }
+    }
     key-pressed(event) => {
         if (event.text == Key.Escape) {
             root.close();
@@ -482,7 +534,7 @@ component ModalFrame inherits FocusScope {
                     height: min(root.height - 48px, modal-layout.preferred-height);
                     border-radius: 16px;
                     border-width: 1px;
-                    border-color: Theme.border;
+                    border-color: root.destructive ? Theme.danger : Theme.border;
                     background: Theme.surface;
                     clip: true;
                     drop-shadow-blur: 70px;
@@ -502,7 +554,7 @@ component ModalFrame inherits FocusScope {
                                 spacing: 7px;
                                 Text {
                                     text: root.kicker;
-                                    color: Theme.muted;
+                                    color: root.destructive ? Theme.danger : Theme.muted;
                                     font-size: 11px;
                                     font-weight: 600;
                                 }
@@ -574,15 +626,81 @@ component CheckLine inherits HorizontalLayout {
     }
 }
 
+component DangerObjectCard inherits Rectangle {
+    in property <string> label;
+    in property <string> value;
+    in property <string> meta;
+    in property <bool> mono: false;
+    height: 68px;
+    border-radius: 10px;
+    border-width: 1px;
+    border-color: Theme.border-soft;
+    background: Theme.sidebar;
+    HorizontalLayout {
+        padding: 12px;
+        spacing: 12px;
+        Rectangle {
+            width: 38px;
+            height: 38px;
+            y: (parent.height - self.height) / 2;
+            border-radius: 9px;
+            border-width: 1px;
+            border-color: Theme.danger;
+            background: Theme.danger-soft;
+            Image {
+                source: @image-url("assets/trash.svg");
+                width: 17px;
+                height: 17px;
+                x: 10px;
+                y: 10px;
+                colorize: Theme.danger;
+            }
+        }
+        VerticalLayout {
+            horizontal-stretch: 1;
+            alignment: center;
+            spacing: 2px;
+            Text { text: root.label; color: Theme.muted; font-size: 11px; overflow: elide; }
+            Text { text: root.value; color: Theme.text; font-size: 14px; font-weight: 600; font-family: root.mono ? "SF Mono" : ""; overflow: elide; }
+            Text { text: root.meta; color: Theme.muted; font-size: 11px; overflow: elide; }
+        }
+    }
+}
+
+component DangerWarning inherits Rectangle {
+    in property <string> title;
+    in property <string> text;
+    height: layout.preferred-height;
+    border-radius: 9px;
+    border-width: 1px;
+    border-color: Theme.danger;
+    background: Theme.danger-soft;
+    layout := VerticalLayout {
+        padding-top: 11px;
+        padding-bottom: 11px;
+        padding-left: 13px;
+        padding-right: 13px;
+        spacing: 4px;
+        Text { text: root.title; color: Theme.danger; font-size: 12px; font-weight: 600; }
+        Text { text: root.text; color: Theme.text-soft; font-size: 12px; wrap: word-wrap; }
+    }
+}
+
 export component CrabHostsTray inherits SystemTrayIcon {
     in property <[ProfileData]> profiles;
     in property <string> selected-name;
-    in property <string> applied-name;
+    in property <int> active-count;
+    in property <string> active-profile-names;
+    in property <bool> active-in-sync;
+    in property <bool> activation-loaded;
     in property <bool> show-tray: true;
     in-out property <image> tray-icon;
     in property <image> tray-icon-on-dark;
-    icon: Palette.color-scheme == ColorScheme.dark ? root.tray-icon-on-dark : root.tray-icon;
-    tooltip: "CrabHosts · Profile 管理";
+    in property <bool> system-light: false;
+    // Tray always follows the menu bar appearance, independently of the app's
+    // manually selected theme.
+    icon: root.system-light ? root.tray-icon : root.tray-icon-on-dark;
+    tooltip: "CrabHosts · 已启用 " + root.active-count + " 个 Profile";
     visible: root.show-tray;
 
     callback open-main();
@@ -601,8 +719,12 @@ export component CrabHostsTray inherits SystemTrayIcon {
             activated => root.open-settings();
         }
         MenuSeparator {}
-        if root.applied-name != "" : MenuItem {
-            title: "本次已应用：" + root.applied-name;
+        MenuItem {
+            title: "已启用 " + root.active-count + " 个 Profile · " + (root.active-in-sync ? "已同步" : "待应用");
+            enabled: false;
+        }
+        if root.active-count > 0 : MenuItem {
+            title: "组合：" + root.active-profile-names;
             enabled: false;
         }
         MenuItem {
@@ -610,13 +732,13 @@ export component CrabHostsTray inherits SystemTrayIcon {
             enabled: false;
         }
         for profile[index] in root.profiles : MenuItem {
-            title: (profile.selected ? "✓ " : "") + profile.name + " · " + profile.entry-count + " 条";
+            title: (profile.selected ? "编辑中 · " : "") + (profile.active ? "已启用 · " : "") + profile.name + " · " + profile.entry-count + " 条";
             activated => root.profile-selected(index);
         }
         MenuSeparator {}
         MenuItem {
-            title: root.selected-name == "" ? "应用当前 Profile…" : "应用「" + root.selected-name + "」…";
-            enabled: root.selected-name != "";
+            title: "应用启用组合（" + root.active-count + " 个）…";
+            enabled: root.activation-loaded && !root.active-in-sync;
             activated => root.apply-current();
         }
         MenuSeparator {}
@@ -641,6 +763,13 @@ export component MainWindow inherits Window {
     in property <[PreviewLineData]> preview-lines;
     in property <string> selected-name;
     in property <int> selected-enabled-count;
+    in property <bool> selected-active;
+    in property <int> active-count;
+    in property <string> active-profile-names;
+    in property <string> confirmed-profile-names;
+    in property <int> confirmed-profile-count;
+    in property <int> confirmed-enabled-count;
+    in property <bool> activation-loaded: false;
     in property <string> status;
     in property <string> panel-text;
     in property <string> panel-label;
@@ -655,14 +784,22 @@ export component MainWindow inherits Window {
     in property <bool> pref-launch-at-login: false;
     in property <bool> pref-show-tray: true;
     in property <string> pref-close-action: "tray";
+    in property <string> pref-theme: "system";
+    // Effective light/dark state, resolved by Rust from the preference and the
+    // current operating-system appearance.
     in-out property <bool> pref-light <=> Theme.light;
     in property <string> pref-density: "comfortable";
     in property <bool> pref-show-profile-counts: true;
+    in property <string> pref-reduce-motion-preference: "system";
+    in property <bool> pref-system-reduce-motion: false;
     in property <bool> pref-reduce-motion: false;
     in property <int> pref-backup-retention: 20;
+    in property <int> backup-retention-from: 20;
+    in property <int> backup-retention-to: 10;
     in property <string> backup-path;
     in property <string> app-version;
     in property <string> login-item-status: "not-installed";
+    in property <bool> cli-available: false;
     in-out property <string> create-error;
     in-out property <int> panel-mode: 0;
     in-out property <bool> show-preview-viewer: false;
@@ -671,7 +808,14 @@ export component MainWindow inherits Window {
     in-out property <bool> preview-gutter: true;
     in-out property <bool> show-create: false;
     in-out property <bool> show-delete-confirm: false;
+    in-out property <string> delete-profile-name;
+    in-out property <string> delete-profile-confirmation;
+    in-out property <int> delete-profile-entry-count: 0;
+    in-out property <int> delete-profile-enabled-count: 0;
+    in-out property <bool> delete-profile-is-last: false;
+    in-out property <bool> delete-profile-is-active: false;
     in-out property <bool> show-remove-entry: false;
+    in-out property <bool> show-backup-retention-confirm: false;
     in-out property <bool> show-import-confirm: false;
     in-out property <bool> show-confirm: false;
     in-out property <bool> show-helper-install: false;
@@ -688,13 +832,14 @@ export component MainWindow inherits Window {
 
     callback refresh();
     callback profile-selected(int);
+    callback profile-activation-toggled(string, bool);
     callback create-profile(string, bool);
-    callback delete-profile();
-    callback preview-selected();
+    callback delete-profile(string, string);
+    callback preview-active();
     callback request-apply();
-    callback apply-selected();
+    callback apply-active();
     callback apply-cancelled();
-    in property <bool> selected-in-sync;
+    in property <bool> active-in-sync;
     pure callback valid-entry(string, string, string) -> bool;
     out property <bool> draft-valid: root.valid-entry(root.draft-ip, root.draft-hostnames, root.draft-comment);
     function submit-entry() {
@@ -705,12 +850,19 @@ export component MainWindow inherits Window {
     callback add-entry(string, string, string);
     callback toggle-entry(int);
     callback remove-entry(int);
+    callback remove-selected();
+    callback select-entry(int);
+    callback select-all(bool);
+    in-out property <int> selection-count;
     callback import-selected-from-system();
     callback load-system-hosts();
     callback copy-preview();
     callback install-helper();
     callback preference-changed(string, string);
+    callback backup-retention-confirmed();
+    callback backup-retention-cancelled();
     callback open-backups();
+    callback install-cli();
     callback reset-preferences();
     callback apply-finished();
 
@@ -731,6 +883,34 @@ export component MainWindow inherits Window {
     property <length> content-gap: root.density-compact ? 12px : root.compact-width ? 13px : 16px;
     property <length> preview-height: root.compact-height ? 232px : 272px;
     property <int> preview-inline-lines: root.compact-height ? 6 : 8;
+    function open-delete-confirmation() {
+        if (!root.modal-open && root.selected-name != "") {
+            root.delete-profile-name = root.selected-name;
+            root.delete-profile-entry-count = root.entries.length;
+            root.delete-profile-enabled-count = root.selected-enabled-count;
+            root.delete-profile-is-last = root.profiles.length == 1;
+            root.delete-profile-is-active = root.selected-active;
+            root.delete-profile-confirmation = "";
+            root.show-delete-confirm = true;
+        }
+    }
+    function close-delete-confirmation() {
+        root.show-delete-confirm = false;
+        root.delete-profile-confirmation = "";
+        root.delete-profile-name = "";
+    }
+    function confirm-delete-profile() {
+        if (root.delete-profile-name != "" && root.delete-profile-confirmation == root.delete-profile-name) {
+            root.show-delete-confirm = false;
+            root.delete-profile(root.delete-profile-name, root.delete-profile-confirmation);
+            root.delete-profile-confirmation = "";
+            root.delete-profile-name = "";
+        }
+    }
+    function close-backup-retention-confirmation() {
+        root.show-backup-retention-confirm = false;
+        root.backup-retention-cancelled();
+    }
     function open-preview-viewer() {
         root.viewer-opened = true;
         root.show-preview-viewer = true;
@@ -746,21 +926,25 @@ export component MainWindow inherits Window {
         54px - 126px - root.preview-height - 20px - 4 * root.content-gap);
     property <length> content-height: root.content-padding-top + root.content-padding-bottom +
         54px + root.entries-height + 126px + root.preview-height + 20px + 4 * root.content-gap;
-    property <bool> modal-open: root.show-create || root.show-delete-confirm || root.show-remove-entry ||
-        root.show-import-confirm || root.show-confirm || root.show-helper-install || root.show-safety ||
-        root.show-reset-preferences;
+    out property <bool> modal-open: root.show-create || root.show-delete-confirm || root.show-remove-entry ||
+        root.show-backup-retention-confirm || root.show-import-confirm || root.show-confirm ||
+        root.show-helper-install || root.show-safety || root.show-reset-preferences;
     property <bool> helper-mode: root.helper-state != "direct" && root.helper-state != "unsupported";
-    property <bool> helper-actionable: root.helper-state == "not_installed" || root.helper-state == "requires_approval" || root.helper-state == "unavailable";
-    property <bool> apply-allowed: !root.helper-busy && (root.helper-state == "direct" || root.helper-state == "ready");
+    property <bool> helper-actionable: root.helper-state == "not_installed" || root.helper-state == "requires_approval" || root.helper-state == "registered_unavailable" || root.helper-state == "unavailable";
+    property <bool> apply-allowed: root.activation-loaded && !root.helper-busy && (root.helper-state == "direct" || root.helper-state == "ready");
     property <string> helper-display-text: root.helper-status-text != "" ? root.helper-status-text :
         root.helper-state == "checking" ? "正在检查系统写入 Helper…" :
         root.helper-state == "ready" ? "系统写入 Helper 已就绪" :
         root.helper-state == "not_installed" ? "系统写入 Helper 未安装" :
         root.helper-state == "requires_approval" ? "Helper 需要安装或更新授权" :
+        root.helper-state == "registered_unavailable" ? "Helper 已注册，等待服务就绪" :
         root.helper-state == "unavailable" ? "系统写入 Helper 不可用" :
         root.helper-state == "unsupported" ? "当前平台不支持 Helper" : "直接写入（测试/演示）";
     property <string> pending-entry-summary: root.pending-entry >= 0 && root.pending-entry < root.entries.length ?
         root.entries[root.pending-entry].address + " " + root.entries[root.pending-entry].hostnames : "";
+    property <bool> pending-entry-enabled: root.pending-entry >= 0 && root.pending-entry < root.entries.length ?
+        root.entries[root.pending-entry].enabled : false;
+    property <bool> reset-reduces-backups: root.pref-backup-retention > 20;
 
     MenuBar {
         Menu {
@@ -768,7 +952,11 @@ export component MainWindow inherits Window {
             MenuItem {
                 title: "设置…";
                 shortcut: @keys(Control + ",");
-                activated => { root.current-view = "settings"; }
+                activated => {
+                    if (!root.modal-open) {
+                        root.current-view = "settings";
+                    }
+                }
             }
             MenuItem {
                 title: "全屏预览";
@@ -862,10 +1050,12 @@ export component MainWindow inherits Window {
                                 icon: @image-url("assets/plus.svg");
                                 accessible-name: "新建";
                                 clicked => {
-                                    root.new-profile-name = "";
-                                    root.import-from-system = false;
-                                    root.create-error = "";
-                                    root.show-create = true;
+                                    if (!root.modal-open) {
+                                        root.new-profile-name = "";
+                                        root.import-from-system = false;
+                                        root.create-error = "";
+                                        root.show-create = true;
+                                    }
                                 }
                             }
                             IconButton {
@@ -901,13 +1091,17 @@ export component MainWindow inherits Window {
                                     profile-name: profile.name;
                                     entry-count: profile.entry-count;
                                     selected: profile.selected;
+                                    active: profile.active;
+                                    activation-enabled: !root.modal-open && !root.helper-busy && root.activation-loaded;
                                     compact: root.compact-height || root.density-compact;
                                     show-counts: root.pref-show-profile-counts;
                                     clicked => {
                                         root.current-view = "profiles";
                                         root.profile-selected(index);
                                         root.panel-mode = 0;
-                                        root.preview-selected();
+                                    }
+                                    active-toggled => {
+                                        root.profile-activation-toggled(profile.id, !profile.active);
                                     }
                                 }
                             }
@@ -941,11 +1135,20 @@ export component MainWindow inherits Window {
                                     horizontal-stretch: 1;
                                 }
                                 if root.helper-actionable : AppButton {
-                                    text: root.helper-busy ? "处理中…" : "安装/更新";
+                                    text: root.helper-busy ? "处理中…" :
+                                        root.helper-state == "requires_approval" || root.helper-state == "registered_unavailable" ? "重新检查" : "安装/更新";
                                     small: true;
                                     button-height: 26px;
                                     enabled: !root.helper-busy;
-                                    clicked => { root.show-helper-install = true; }
+                                    clicked => {
+                                        if (!root.modal-open) {
+                                            if (root.helper-state == "requires_approval" || root.helper-state == "registered_unavailable") {
+                                                root.install-helper();
+                                            } else {
+                                                root.show-helper-install = true;
+                                            }
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -967,7 +1170,7 @@ export component MainWindow inherits Window {
                                     colorize: Theme.text-soft;
                                 }
                                 Text {
-                                    text: "Profile 修改不会自动更改系统 hosts，应用前始终需要确认。";
+                                    text: "Profile 修改与本机启用开关不会自动更改系统 hosts，应用前始终需要确认。";
                                     color: Theme.muted;
                                     font-size: 12px;
                                     wrap: word-wrap;
@@ -1028,20 +1231,30 @@ export component MainWindow inherits Window {
                                 text: "新建 Profile";
                                 kind: "primary";
                                 clicked => {
-                                    root.new-profile-name = "";
-                                    root.import-from-system = false;
-                                    root.create-error = "";
-                                    root.show-create = true;
+                                    if (!root.modal-open) {
+                                        root.new-profile-name = "";
+                                        root.import-from-system = false;
+                                        root.create-error = "";
+                                        root.show-create = true;
+                                    }
                                 }
                             }
                             AppButton {
                                 text: "从系统 hosts 导入";
                                 clicked => {
-                                    root.new-profile-name = "";
-                                    root.import-from-system = true;
-                                    root.create-error = "";
-                                    root.show-create = true;
+                                    if (!root.modal-open) {
+                                        root.new-profile-name = "";
+                                        root.import-from-system = true;
+                                        root.create-error = "";
+                                        root.show-create = true;
+                                    }
                                 }
+                            }
+                            AppButton {
+                                text: "应用启用组合（" + root.active-count + "）";
+                                kind: "apply";
+                                enabled: root.activation-loaded && !root.helper-busy && !root.active-in-sync;
+                                clicked => root.request-apply();
                             }
                         }
                     }
@@ -1068,7 +1281,7 @@ export component MainWindow inherits Window {
                                     horizontal-stretch: 1;
                                     spacing: 7px;
                                     Text {
-                                        text: "当前 PROFILE";
+                                        text: "正在编辑 PROFILE";
                                         color: Theme.muted;
                                         font-size: 11px;
                                         font-weight: 600;
@@ -1096,7 +1309,8 @@ export component MainWindow inherits Window {
                                     icon: @image-url("assets/trash.svg");
                                     show-icon: true;
                                     kind: "danger";
-                                    clicked => { root.show-delete-confirm = true; }
+                                    enabled: root.selected-name != "";
+                                    clicked => { root.open-delete-confirmation(); }
                                 }
                                 AppButton {
                                     text: "预览变更";
@@ -1104,15 +1318,16 @@ export component MainWindow inherits Window {
                                     show-icon: true;
                                     clicked => {
                                         root.panel-mode = 0;
-                                        root.preview-selected();
+                                        root.preview-active();
                                     }
                                 }
                                 AppButton {
-                                    text: root.selected-in-sync ? "已同步" : "应用到本机";
+                                    text: root.active-in-sync ? "组合已同步" : "应用启用组合（" + root.active-count + "）";
+                                    accessible-name: root.active-in-sync ? "启用组合已同步" : "应用启用组合";
                                     icon: @image-url("assets/check.svg");
                                     show-icon: true;
                                     kind: "apply";
-                                    enabled: !root.helper-busy && !root.selected-in-sync;
+                                    enabled: root.activation-loaded && !root.helper-busy && !root.active-in-sync;
                                     clicked => { root.request-apply(); }
                                 }
                             }
@@ -1144,6 +1359,19 @@ export component MainWindow inherits Window {
                                             vertical-alignment: center;
                                             horizontal-stretch: 1;
                                         }
+                                        if root.selection-count > 0 : CenteredControl {
+                                            AppButton {
+                                                small: true;
+                                                kind: "danger";
+                                                text: "删除所选（" + root.selection-count + "）";
+                                                clicked => {
+                                                    if (!root.modal-open) {
+                                                        root.pending-entry = -1;
+                                                        root.show-remove-entry = true;
+                                                    }
+                                                }
+                                            }
+                                        }
                                         Rectangle {
                                             width: 15px;
                                             height: 54px;
@@ -1166,6 +1394,17 @@ export component MainWindow inherits Window {
                                     HorizontalLayout {
                                         height: 38px;
                                         spacing: 0;
+                                        Rectangle {
+                                            width: 38px;
+                                            AppCheckBox {
+                                                x: 14px;
+                                                y: (parent.height - self.height) / 2;
+                                                width: 22px;
+                                                checked: root.entries.length > 0 && root.selection-count == root.entries.length;
+                                                accessible-label: "全选记录";
+                                                toggle => root.select-all(!self.checked);
+                                            }
+                                        }
                                         Rectangle { width: 82px; Text { x: 18px; text: "状态"; color: Theme.muted; font-size: 11px; vertical-alignment: center; } }
                                         Rectangle { width: 152px; Text { x: 14px; text: "IP 地址"; color: Theme.muted; font-size: 11px; vertical-alignment: center; } }
                                         Rectangle { horizontal-stretch: 1; Text { x: 14px; text: "Hostname"; color: Theme.muted; font-size: 11px; vertical-alignment: center; } }
@@ -1191,6 +1430,17 @@ export component MainWindow inherits Window {
                                                 row-hover := TouchArea {}
                                                 HorizontalLayout {
                                                     spacing: 0;
+                                                    Rectangle {
+                                                        width: 38px;
+                                                        AppCheckBox {
+                                                            x: 14px;
+                                                            y: (parent.height - self.height) / 2;
+                                                            width: 22px;
+                                                            checked: entry.selected;
+                                                            accessible-label: "选择 " + entry.hostnames;
+                                                            toggle => root.select-entry(index);
+                                                        }
+                                                    }
                                                     Rectangle {
                                                         width: 82px;
                                                         EntrySwitch {
@@ -1251,8 +1501,10 @@ export component MainWindow inherits Window {
                                                             icon-size: 15px;
                                                             danger: true;
                                                             clicked => {
-                                                                root.pending-entry = index;
-                                                                root.show-remove-entry = true;
+                                                                if (!root.modal-open) {
+                                                                    root.pending-entry = index;
+                                                                    root.show-remove-entry = true;
+                                                                }
                                                             }
                                                         }
                                                     }
@@ -1394,7 +1646,7 @@ export component MainWindow inherits Window {
                                                         active: root.panel-mode == 0;
                                                         clicked => {
                                                             root.panel-mode = 0;
-                                                            root.preview-selected();
+                                                            root.preview-active();
                                                         }
                                                     }
                                                     Segment {
@@ -1437,7 +1689,11 @@ export component MainWindow inherits Window {
                                                 kind: "quiet";
                                                 small: true;
                                                 // 导入会合并并落盘 Profile，先确认再执行，避免误点直接改数据。
-                                                clicked => { root.show-import-confirm = true; }
+                                                clicked => {
+                                                    if (!root.modal-open) {
+                                                        root.show-import-confirm = true;
+                                                    }
+                                                }
                                             }
                                         }
                                         VerticalLayout {
@@ -1576,18 +1832,30 @@ export component MainWindow inherits Window {
                     show-tray: root.pref-show-tray;
                     close-action: root.pref-close-action;
                     density: root.pref-density;
+                    theme: root.pref-theme;
                     show-profile-counts: root.pref-show-profile-counts;
-                    reduce-motion: root.pref-reduce-motion;
+                    reduce-motion-preference: root.pref-reduce-motion-preference;
+                    system-reduce-motion: root.pref-system-reduce-motion;
                     backup-retention: root.pref-backup-retention;
                     backup-path: root.backup-path;
                     app-version: root.app-version;
                     login-item-status: root.login-item-status;
+                    cli-available: root.cli-available;
                     close => { root.current-view = "profiles"; }
                     section-selected(index) => { root.settings-section = index; }
                     preference-changed(key, value) => { root.preference-changed(key, value); }
                     open-backups => { root.open-backups(); }
-                    show-safety => { root.show-safety = true; }
-                    reset-preferences => { root.show-reset-preferences = true; }
+                    install-cli => { root.install-cli(); }
+                    show-safety => {
+                        if (!root.modal-open) {
+                            root.show-safety = true;
+                        }
+                    }
+                    reset-preferences => {
+                        if (!root.modal-open) {
+                            root.show-reset-preferences = true;
+                        }
+                    }
                 }
             }
         }
@@ -1636,57 +1904,147 @@ export component MainWindow inherits Window {
     }
 
     if root.show-delete-confirm : ModalFrame {
-        title: "删除 Profile「" + root.selected-name + "」？";
-        kicker: "删除确认";
-        close => { root.show-delete-confirm = false; }
+        title: "删除这个 Profile？";
+        kicker: "永久删除";
+        destructive: true;
+        dialog-description: "输入完全一致的 Profile 名称后才能永久删除。";
+        close => { root.close-delete-confirmation(); }
         VerticalLayout {
             padding-top: 16px;
-            padding-bottom: 22px;
+            padding-bottom: 18px;
             padding-left: 24px;
             padding-right: 24px;
-            Text {
-                text: "只删除 CrabHosts 保存的配置，不会修改系统 hosts，也不会删除已生成的备份。";
-                color: Theme.text-soft;
-                font-size: 13px;
+            spacing: 10px;
+            DangerObjectCard {
+                label: "Profile";
+                value: root.delete-profile-name;
+                meta: root.delete-profile-entry-count + " 条记录 · " + root.delete-profile-enabled-count + " 条已启用";
+            }
+            DangerWarning {
+                title: "删除后无法撤销";
+                text: "Profile 及其全部记录将从 CrabHosts 配置中永久移除。";
+            }
+            CheckLine {
+                text: root.delete-profile-is-active ?
+                    "该 Profile 当前已启用；删除只更新 Profile 和本机启用状态，系统 hosts 保持现状，后续应用才会移除其贡献" :
+                    "不会修改系统 hosts 或其现有托管内容";
+            }
+            CheckLine { text: "不会删除已经生成的备份"; }
+            if root.delete-profile-is-last : Text {
+                text: "这是最后一个 Profile；删除后列表将为空，可重新新建。";
+                color: Theme.muted;
+                font-size: 12px;
                 wrap: word-wrap;
+            }
+            VerticalLayout {
+                spacing: 7px;
+                Text {
+                    text: "请输入 Profile 名称「" + root.delete-profile-name + "」以确认";
+                    color: Theme.text-soft;
+                    font-size: 12px;
+                    wrap: word-wrap;
+                }
+                FieldInput {
+                    text <=> root.delete-profile-confirmation;
+                    placeholder: root.delete-profile-name;
+                    accessible-name: "确认删除 Profile 名称";
+                    initial-focus: true;
+                    mono: true;
+                    height: 42px;
+                    submitted => { root.confirm-delete-profile(); }
+                }
+                Text {
+                    text: "名称需完全一致（区分大小写），确认按钮才会可用。";
+                    color: Theme.muted;
+                    font-size: 11px;
+                    wrap: word-wrap;
+                }
             }
         }
         ModalFooter {
-            AppButton { text: "取消"; kind: "quiet"; clicked => { root.show-delete-confirm = false; } }
             AppButton {
-                text: "确认删除";
+                text: "取消";
+                kind: "quiet";
+                accessible-name: "取消删除 Profile";
+                clicked => { root.close-delete-confirmation(); }
+            }
+            AppButton {
+                text: "删除 Profile";
                 kind: "danger";
-                clicked => {
-                    root.show-delete-confirm = false;
-                    root.delete-profile();
-                }
+                solid: true;
+                enabled: root.delete-profile-name != "" && root.delete-profile-confirmation == root.delete-profile-name;
+                clicked => { root.confirm-delete-profile(); }
             }
         }
     }
 
     if root.show-remove-entry : ModalFrame {
-        title: "删除这条记录？";
-        kicker: "删除确认";
+        title: root.pending-entry < 0 ? "删除所选的 " + root.selection-count + " 条记录？" : "删除这条 Hosts 记录？";
+        kicker: "永久删除";
+        destructive: true;
+        dialog-description: "核对所选记录；删除后无法撤销。";
         close => {
             root.show-remove-entry = false;
             root.pending-entry = -1;
         }
         VerticalLayout {
             padding-top: 16px;
-            padding-bottom: 22px;
+            padding-bottom: 20px;
             padding-left: 24px;
             padding-right: 24px;
-            spacing: 14px;
-            Text {
-                text: "将从当前 Profile 中移除 " + root.pending-entry-summary + "。";
-                color: Theme.text-soft;
-                font-size: 13px;
-                wrap: word-wrap;
+            spacing: 12px;
+            if root.pending-entry >= 0 : DangerObjectCard {
+                label: "Profile「" + root.selected-name + "」";
+                value: root.pending-entry-summary;
+                meta: "当前状态：" + (root.pending-entry-enabled ? "已启用" : "已禁用");
+                mono: true;
+            }
+            if root.pending-entry < 0 : DangerObjectCard {
+                label: "Profile「" + root.selected-name + "」";
+                value: root.selection-count + " 条所选记录";
+                meta: "批量删除 · 请核对下方明细";
+            }
+            if root.pending-entry < 0 : Rectangle {
+                height: min(144px, bulk-list.preferred-height);
+                border-radius: 9px;
+                border-width: 1px;
+                border-color: Theme.border-soft;
+                background: Theme.field;
+                clip: true;
+                ScrollView {
+                    bulk-list := VerticalLayout {
+                        padding: 10px;
+                        spacing: 0;
+                        for entry in root.entries : Rectangle {
+                            height: entry.selected ? row-content.preferred-height + 9px : 0px;
+                            clip: true;
+                            row-content := VerticalLayout {
+                                spacing: 2px;
+                                Text {
+                                    text: entry.address + "  " + entry.hostnames;
+                                    color: Theme.text-soft;
+                                    font-family: "SF Mono";
+                                    font-size: 12px;
+                                    wrap: word-wrap;
+                                }
+                                Text {
+                                    text: entry.enabled ? "已启用" : "已禁用";
+                                    color: Theme.muted;
+                                    font-size: 11px;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            DangerWarning {
+                title: "删除后无法撤销";
+                text: root.pending-entry < 0 ? "所选映射将从当前 Profile 中永久移除。" : "该映射将从当前 Profile 中永久移除。";
             }
             Text {
-                text: "不会修改系统 hosts，该操作无法撤销。";
-                color: Theme.text-soft;
-                font-size: 13px;
+                text: "仅更新 Profile；系统 hosts 不会立即变化，已有备份也不会删除。";
+                color: Theme.muted;
+                font-size: 12px;
                 wrap: word-wrap;
             }
         }
@@ -1694,18 +2052,70 @@ export component MainWindow inherits Window {
             AppButton {
                 text: "取消";
                 kind: "quiet";
+                accessible-name: "取消删除记录";
+                initial-focus: true;
                 clicked => {
                     root.show-remove-entry = false;
                     root.pending-entry = -1;
                 }
             }
             AppButton {
-                text: "确认删除";
+                text: "删除记录";
                 kind: "danger";
+                solid: true;
                 clicked => {
                     root.show-remove-entry = false;
-                    root.remove-entry(root.pending-entry);
+                    if root.pending-entry < 0 { root.remove-selected(); } else { root.remove-entry(root.pending-entry); }
                     root.pending-entry = -1;
+                }
+            }
+        }
+    }
+
+    if root.show-backup-retention-confirm : ModalFrame {
+        title: "降低备份保留上限？";
+        kicker: "备份清理";
+        destructive: true;
+        dialog-description: "超出新上限的旧自动备份将在后续成功应用时永久清理。";
+        close => { root.close-backup-retention-confirmation(); }
+        VerticalLayout {
+            padding-top: 16px;
+            padding-bottom: 20px;
+            padding-left: 24px;
+            padding-right: 24px;
+            spacing: 12px;
+            HorizontalLayout {
+                height: 64px;
+                spacing: 10px;
+                SummaryCell { horizontal-stretch: 1; label: "当前保留上限"; value: "最近 " + root.backup-retention-from + " 份"; }
+                SummaryCell { horizontal-stretch: 1; label: "调整后"; value: "最近 " + root.backup-retention-to + " 份"; }
+            }
+            DangerWarning {
+                title: "旧备份将按新规则清理";
+                text: "超出新上限的旧自动备份将在后续成功应用时永久删除，且无法恢复。";
+            }
+            Text {
+                text: "不影响手动导出的文件，也不会删除 Profile 或修改系统 hosts。后续自动清理按新上限执行，不重复弹窗。";
+                color: Theme.muted;
+                font-size: 12px;
+                wrap: word-wrap;
+            }
+        }
+        ModalFooter {
+            AppButton {
+                text: "取消";
+                kind: "quiet";
+                accessible-name: "取消备份清理";
+                initial-focus: true;
+                clicked => { root.close-backup-retention-confirmation(); }
+            }
+            AppButton {
+                text: "确认调整";
+                kind: "danger";
+                solid: true;
+                clicked => {
+                    root.show-backup-retention-confirm = false;
+                    root.backup-retention-confirmed();
                 }
             }
         }
@@ -1769,7 +2179,7 @@ export component MainWindow inherits Window {
             padding-right: 24px;
             spacing: 12px;
             Text {
-                text: "将把 Profile「" + root.selected-name + "」应用到系统 hosts。";
+                text: "将把已批准的启用组合「" + root.confirmed-profile-names + "」应用到系统 hosts。";
                 color: Theme.text-soft;
                 font-size: 13px;
                 wrap: word-wrap;
@@ -1777,8 +2187,16 @@ export component MainWindow inherits Window {
             HorizontalLayout {
                 height: 64px;
                 spacing: 10px;
-                SummaryCell { horizontal-stretch: 1; label: "启用记录"; value: root.selected-enabled-count + " 条"; }
+                SummaryCell {
+                    horizontal-stretch: 1;
+                    label: "组合 Profile / 启用记录";
+                    value: root.confirmed-profile-count + " 个 · " + root.confirmed-enabled-count + " 条";
+                }
                 SummaryCell { horizontal-stretch: 1; label: "目标文件"; value: root.system-hosts-path; mono: true; }
+            }
+            if root.confirmed-profile-count == 0 : DangerWarning {
+                title: "应用空组合";
+                text: "将移除 CrabHosts 托管区块，非托管内容保留。";
             }
             VerticalLayout {
                 spacing: 9px;
@@ -1818,7 +2236,7 @@ export component MainWindow inherits Window {
                 enabled: root.apply-allowed;
                 clicked => {
                     root.show-confirm = false;
-                    root.apply-selected();
+                    root.apply-active();
                 }
             }
         }
@@ -1874,7 +2292,8 @@ export component MainWindow inherits Window {
             padding-left: 24px;
             padding-right: 24px;
             spacing: 12px;
-            CheckLine { text: "Profile 编辑与 Tray 切换不会隐式修改系统 hosts"; }
+            CheckLine { text: "Profile 编辑、Tray 切换及启用/停用开关都不会隐式修改系统 hosts"; }
+            CheckLine { text: "启用组合只保存到本机 activation.json，不进入 Profile 同步文档"; }
             CheckLine { text: "真实写入需要最新差异计划、显式确认与自动备份"; }
             CheckLine { text: "Helper 仅在安装或更新时请求管理员授权，日常写入不重复询问密码"; }
             Text {
@@ -1891,7 +2310,9 @@ export component MainWindow inherits Window {
 
     if root.show-reset-preferences : ModalFrame {
         title: "恢复默认偏好设置？";
-        kicker: "设置";
+        kicker: root.reset-reduces-backups ? "备份清理" : "设置";
+        destructive: root.reset-reduces-backups;
+        dialog-description: root.reset-reduces-backups ? "重置会把备份上限降到 20 份，需确认后续清理后果。" : "只重置桌面偏好。";
         close => { root.show-reset-preferences = false; }
         VerticalLayout {
             padding-top: 16px;
@@ -1900,23 +2321,33 @@ export component MainWindow inherits Window {
             padding-right: 24px;
             spacing: 12px;
             Text {
-                text: "只重置启动、Tray、外观与备份保留数量等桌面偏好。";
+                text: "将重置启动、Tray、外观与备份保留数量等桌面偏好，不会删除 Profile 或修改系统 hosts。";
                 color: Theme.text-soft;
                 font-size: 13px;
                 wrap: word-wrap;
             }
-            Text {
-                text: "不会删除 Profile，也不会修改系统 hosts。备份只在后续成功应用时按保留数量清理。";
+            if root.reset-reduces-backups : DangerWarning {
+                title: "备份上限将从 " + root.pref-backup-retention + " 份降为 20 份";
+                text: "超出默认上限的旧自动备份将在后续成功应用时永久清理；手动导出的文件不受影响。";
+            }
+            if !root.reset-reduces-backups : Text {
+                text: "不会删除已有备份。";
                 color: Theme.muted;
                 font-size: 12px;
                 wrap: word-wrap;
             }
         }
         ModalFooter {
-            AppButton { text: "取消"; kind: "quiet"; clicked => { root.show-reset-preferences = false; } }
             AppButton {
-                text: "恢复默认";
-                kind: "primary";
+                text: "取消";
+                kind: "quiet";
+                initial-focus: root.reset-reduces-backups;
+                clicked => { root.show-reset-preferences = false; }
+            }
+            AppButton {
+                text: root.reset-reduces-backups ? "确认恢复并调整" : "恢复默认";
+                kind: root.reset-reduces-backups ? "danger" : "primary";
+                solid: root.reset-reduces-backups;
                 clicked => {
                     root.show-reset-preferences = false;
                     root.reset-preferences();
@@ -1991,7 +2422,7 @@ export component MainWindow inherits Window {
                                         clip: true;
                                         viewer-profile := Text {
                                             width: parent.width;
-                                            text: root.panel-mode == 0 ? root.selected-name : root.system-hosts-path;
+                                            text: root.panel-mode == 0 ? root.active-profile-names : root.system-hosts-path;
                                             color: Theme.text-soft;
                                             font-size: 11px;
                                             horizontal-alignment: center;
@@ -2063,7 +2494,7 @@ export component MainWindow inherits Window {
                                             active: root.panel-mode == 0;
                                             clicked => {
                                                 root.panel-mode = 0;
-                                                root.preview-selected();
+                                                root.preview-active();
                                             }
                                         }
                                         Segment {

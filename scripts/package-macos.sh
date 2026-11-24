@@ -53,21 +53,21 @@ mkdir -p \
     "$CONTENTS/Library/LaunchServices" \
     "$CONTENTS/Library/LaunchDaemons"
 cp "$ROOT/target/release/crabhosts-desktop" "$CONTENTS/MacOS/CrabHosts"
-# CrabHosts and crabhosts differ only by case and collide on default APFS volumes.
-cp "$ROOT/target/release/crabhosts" "$CONTENTS/SharedSupport/crabhosts"
+# Keep the CLI outside Contents/MacOS so it cannot collide with the desktop executable.
+cp "$ROOT/target/release/crab" "$CONTENTS/SharedSupport/crab"
 cp "$ROOT/target/release/crabhosts-macos-helper" \
     "$CONTENTS/Library/LaunchServices/dev.crabhosts.hosts-helper"
 cp "$ROOT/apps/desktop/macos/Info.plist" "$CONTENTS/Info.plist"
 cp "$ROOT/apps/desktop/macos/CrabHosts.icns" "$CONTENTS/Resources/CrabHosts.icns"
 cp "$ROOT/apps/macos-helper/launchd/dev.crabhosts.hosts-helper.plist" \
     "$CONTENTS/Library/LaunchDaemons/dev.crabhosts.hosts-helper.plist"
-if [[ "$CONTENTS/MacOS/CrabHosts" -ef "$CONTENTS/SharedSupport/crabhosts" ]]; then
+if [[ "$CONTENTS/MacOS/CrabHosts" -ef "$CONTENTS/SharedSupport/crab" ]]; then
     echo "Desktop and CLI unexpectedly resolve to the same file." >&2
     exit 1
 fi
 chmod 755 \
     "$CONTENTS/MacOS/CrabHosts" \
-    "$CONTENTS/SharedSupport/crabhosts" \
+    "$CONTENTS/SharedSupport/crab" \
     "$CONTENTS/Library/LaunchServices/dev.crabhosts.hosts-helper"
 
 sign_executable() {
@@ -79,7 +79,7 @@ sign_executable() {
 
 sign_executable "$CONTENTS/Library/LaunchServices/dev.crabhosts.hosts-helper" \
     "dev.crabhosts.hosts-helper"
-sign_executable "$CONTENTS/SharedSupport/crabhosts" "dev.crabhosts.cli"
+sign_executable "$CONTENTS/SharedSupport/crab" "dev.crabhosts.cli"
 sign_executable "$APP_DIR" "dev.crabhosts.desktop"
 
 verify_executable() {
@@ -92,14 +92,14 @@ verify_executable() {
 
 verify_executable "$CONTENTS/Library/LaunchServices/dev.crabhosts.hosts-helper" \
     "dev.crabhosts.hosts-helper"
-verify_executable "$CONTENTS/SharedSupport/crabhosts" "dev.crabhosts.cli"
+verify_executable "$CONTENTS/SharedSupport/crab" "dev.crabhosts.cli"
 verify_executable "$APP_DIR" "dev.crabhosts.desktop"
 plutil -lint "$CONTENTS/Info.plist" \
     "$CONTENTS/Library/LaunchDaemons/dev.crabhosts.hosts-helper.plist"
 
 cat <<EOF
 Created and signed: $APP_DIR
-CLI for AI Harness: $CONTENTS/SharedSupport/crabhosts
+CLI for AI Harness: $CONTENTS/SharedSupport/crab
 
 Opening the app does not install the Helper automatically. Use the explicit Helper install
 action in the desktop UI, then approve the launchd daemon in macOS System Settings if asked.

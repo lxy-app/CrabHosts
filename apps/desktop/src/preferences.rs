@@ -43,9 +43,85 @@ impl Density {
 #[derive(Clone, Copy, Debug, Default, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum ColorTheme {
+    /// Follow the operating system's current light/dark appearance.
     #[default]
+    System,
     Dark,
     Light,
+}
+
+impl ColorTheme {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::System => "system",
+            Self::Dark => "dark",
+            Self::Light => "light",
+        }
+    }
+
+    pub fn is_light(self, system_light: bool) -> bool {
+        match self {
+            Self::System => system_light,
+            Self::Dark => false,
+            Self::Light => true,
+        }
+    }
+}
+
+/// Device-local motion preference. `System` follows the OS accessibility setting.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum MotionPreference {
+    #[default]
+    System,
+    Always,
+    Never,
+}
+
+impl MotionPreference {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::System => "system",
+            Self::Always => "always",
+            Self::Never => "never",
+        }
+    }
+
+    pub fn is_enabled(self, system_reduce_motion: bool) -> bool {
+        match self {
+            Self::System => system_reduce_motion,
+            Self::Always => true,
+            Self::Never => false,
+        }
+    }
+}
+
+impl<'de> Deserialize<'de> for MotionPreference {
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        // Preferences written before the three-state control used a boolean.
+        #[derive(Deserialize)]
+        #[serde(untagged)]
+        enum LegacyOrCurrent {
+            Bool(bool),
+            Text(String),
+        }
+
+        match LegacyOrCurrent::deserialize(deserializer)? {
+            LegacyOrCurrent::Bool(true) => Ok(Self::Always),
+            LegacyOrCurrent::Bool(false) => Ok(Self::Never),
+            LegacyOrCurrent::Text(value) => match value.as_str() {
+                "system" => Ok(Self::System),
+                "always" => Ok(Self::Always),
+                "never" => Ok(Self::Never),
+                _ => Err(serde::de::Error::custom(format!(
+                    "invalid motion preference {value:?}"
+                ))),
+            },
+        }
+    }
 }
 
 /// Device-local desktop preferences. These values never enter the synced Profile document.
@@ -59,7 +135,7 @@ pub struct DesktopPreferences {
     pub theme: ColorTheme,
     pub density: Density,
     pub show_profile_counts: bool,
-    pub reduce_motion: bool,
+    pub reduce_motion: MotionPreference,
     pub backup_retention: usize,
 }
 
@@ -70,10 +146,10 @@ impl Default for DesktopPreferences {
             launch_at_login: false,
             show_tray: true,
             close_action: CloseAction::Tray,
-            theme: ColorTheme::Dark,
+            theme: ColorTheme::System,
             density: Density::Comfortable,
             show_profile_counts: true,
-            reduce_motion: false,
+            reduce_motion: MotionPreference::System,
             backup_retention: 20,
         }
     }
@@ -130,6 +206,7 @@ impl DesktopPreferences {
             }
             "theme" => {
                 self.theme = match value {
+                    "system" => ColorTheme::System,
                     "light" => ColorTheme::Light,
                     "dark" => ColorTheme::Dark,
                     _ => return Err(Error::Invalid(format!("invalid theme {value:?}"))),
@@ -143,7 +220,18 @@ impl DesktopPreferences {
                 };
             }
             "show-profile-counts" => self.show_profile_counts = parse_bool(value)?,
-            "reduce-motion" => self.reduce_motion = parse_bool(value)?,
+            "reduce-motion" => {
+                self.reduce_motion = match value {
+                    "system" => MotionPreference::System,
+                    "always" => MotionPreference::Always,
+                    "never" => MotionPreference::Never,
+                    _ => {
+                        return Err(Error::Invalid(format!(
+                            "invalid motion preference {value:?}"
+                        )));
+                    }
+                };
+            }
             "backup-retention" => {
                 self.backup_retention = value
                     .parse()
@@ -218,14 +306,41 @@ mod tests {
         let mut preferences = DesktopPreferences::default();
         preferences.apply("density", "compact").unwrap();
         preferences.apply("backup-retention", "50").unwrap();
-        preferences.apply("reduce-motion", "true").unwrap();
+        preferences.apply("reduce-motion", "always").unwrap();
         preferences.save(&paths).unwrap();
 
         let loaded = DesktopPreferences::load(&paths).unwrap();
         assert_eq!(loaded, preferences);
         assert_eq!(loaded.density, Density::Compact);
         assert_eq!(loaded.backup_retention, 50);
-        assert!(loaded.reduce_motion);
+        assert_eq!(loaded.reduce_motion, MotionPreference::Always);
+    }
+
+    #[test]
+    fn system_preferences_resolve_and_legacy_motion_booleans_load() {
+        let mut preferences = DesktopPreferences::default();
+        assert_eq!(preferences.theme, ColorTheme::System);
+        assert_eq!(preferences.reduce_motion, MotionPreference::System);
+        assert!(MotionPreference::System.is_enabled(true));
+        assert!(!MotionPreference::System.is_enabled(false));
+        assert!(MotionPreference::Always.is_enabled(false));
+        assert!(!MotionPreference::Never.is_enabled(true));
+
+        preferences.apply("theme", "system").unwrap();
+        preferences.apply("reduce-motion", "never").unwrap();
+        assert_eq!(preferences.reduce_motion, MotionPreference::Never);
+        assert!(preferences.apply("reduce-motion", "true").is_err());
+
+        let legacy = serde_json::from_str::<DesktopPreferences>(
+            r#"{"schema_version":1,"reduce_motion":true}"#,
+        )
+        .unwrap();
+        assert_eq!(legacy.reduce_motion, MotionPreference::Always);
+        let legacy = serde_json::from_str::<DesktopPreferences>(
+            r#"{"schema_version":1,"reduce_motion":false}"#,
+        )
+        .unwrap();
+        assert_eq!(legacy.reduce_motion, MotionPreference::Never);
     }
 
     #[test]

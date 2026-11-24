@@ -57,17 +57,19 @@ fn apply_with_writer<F>(storage: &Storage, plan: &SystemPlan, write: F) -> Resul
 where
     F: FnOnce(crabhosts_core::HostsWriteRequest) -> Result<ApplyReport>,
 {
+    if storage.read_hosts()? != plan.current {
+        return Err(Error::Conflict);
+    }
     if !plan.changed {
         return Ok(ApplyReport {
             operation: plan.operation.clone(),
             source: plan.source.clone(),
+            profile_ids: plan.profile_ids.clone(),
+            profile_names: plan.profile_names.clone(),
             changed: false,
             backup_id: None,
             hosts_sha256: plan.current_sha256.clone(),
         });
-    }
-    if storage.read_hosts()? != plan.current {
-        return Err(Error::Conflict);
     }
 
     // Backups stay in the invoking user's configuration directory. The root helper never writes
@@ -85,6 +87,8 @@ where
                 ApplyReport {
                     operation: plan.operation.clone(),
                     source: plan.source.clone(),
+                    profile_ids: plan.profile_ids.clone(),
+                    profile_names: plan.profile_names.clone(),
                     changed: true,
                     backup_id: None,
                     hosts_sha256: plan.proposed_sha256.clone(),
@@ -105,6 +109,7 @@ mod tests {
     use super::*;
     use crabhosts_core::{
         AppPaths, Document, HostEntry, Profile, execute_privileged_write, plan_profile,
+        plan_profiles,
     };
 
     fn fixture() -> (tempfile::TempDir, Storage, SystemPlan) {
@@ -176,6 +181,20 @@ mod tests {
         .unwrap_err();
         assert!(matches!(error, Error::Io(_)));
         assert_eq!(storage.read_hosts().unwrap(), "127.0.0.1 localhost\n");
+    }
+
+    #[test]
+    fn no_op_plan_is_rejected_before_success_when_hosts_changed() {
+        let (_directory, storage, _plan) = fixture();
+        let no_op = plan_profiles(&storage, &Document::default(), &[]).unwrap();
+        assert!(!no_op.changed);
+        std::fs::write(&storage.paths().hosts_file, "changed elsewhere\n").unwrap();
+        let error = apply_with_writer(&storage, &no_op, |_request| {
+            panic!("stale no-op plan must not reach the helper")
+        })
+        .unwrap_err();
+        assert!(matches!(error, Error::Conflict));
+        assert!(storage.backups().list().unwrap().is_empty());
     }
 
     #[test]

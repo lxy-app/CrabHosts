@@ -11,6 +11,7 @@ pub const HOSTS_FILE_ENV: &str = "CRABHOSTS_HOSTS_FILE";
 pub struct AppPaths {
     pub config_dir: PathBuf,
     pub database_file: PathBuf,
+    pub activation_file: PathBuf,
     pub backups_dir: PathBuf,
     pub hosts_file: PathBuf,
 }
@@ -33,6 +34,7 @@ impl AppPaths {
     pub fn new(config_dir: PathBuf, hosts_file: PathBuf) -> Self {
         Self {
             database_file: config_dir.join("profiles.json"),
+            activation_file: config_dir.join("activation.json"),
             backups_dir: config_dir.join("backups"),
             config_dir,
             hosts_file,
