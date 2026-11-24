@@ -23,7 +23,7 @@ export default function Home() {
         </div>
       </section>
       <DesktopPreview />
-      <section className="cli wrap" id="cli"><div><p className="eyebrow">COMMAND LINE</p><h2>从终端预览变更</h2><p>桌面端和 CLI 共用 Profile。选取已有配置，通过 dry-run 检查待写入的内容。自动化工具也可以读取 JSON 结果。</p><a href="https://github.com/lxy-app/CrabHosts/blob/main/skills/crabhosts/references/cli.md">阅读 CLI 文档 ↗</a></div><pre><code><em># 列出本机配置</em>{'\n'}crabhosts --json profile list{'\n\n'}<em># 预览名为 dev 的配置</em>{'\n'}crabhosts system apply dev --dry-run</code></pre></section>
+      <section className="cli wrap" id="cli"><div><p className="eyebrow">COMMAND LINE</p><h2>从终端预览变更</h2><p>桌面端和 CLI 共用 Profile。选取已有配置，通过 dry-run 检查待写入的内容。自动化工具也可以读取 JSON 结果。</p><a href="https://github.com/lxy-app/CrabHosts/blob/main/skills/crabhosts/references/cli.md">阅读 CLI 文档 ↗</a></div><pre><code><em># 列出本机配置</em>{'\n'}crab --json profile list{'\n\n'}<em># 启用 dev 并预览组合变更</em>{'\n'}crab profile activate dev{'\n'}crab system apply --dry-run</code></pre></section>
       </main><footer><div className="wrap bar"><span>CrabHosts</span><a href="https://github.com/lxy-app/CrabHosts">GitHub ↗</a></div></footer>
     </>
   );
