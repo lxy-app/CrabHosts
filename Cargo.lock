@@ -794,7 +794,7 @@ dependencies = [
 
 [[package]]
 name = "crabhosts-cli"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "clap",
  "crabhosts-core",
@@ -806,7 +806,7 @@ dependencies = [
 
 [[package]]
 name = "crabhosts-core"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "chrono",
  "directories",
@@ -823,7 +823,7 @@ dependencies = [
 
 [[package]]
 name = "crabhosts-desktop"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "arboard",
  "block2 0.6.2",
@@ -845,14 +845,14 @@ dependencies = [
 
 [[package]]
 name = "crabhosts-macos-helper"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "crabhosts-system-client",
 ]
 
 [[package]]
 name = "crabhosts-system-client"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "cc",
  "crabhosts-core",
