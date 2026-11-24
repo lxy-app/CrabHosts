@@ -11,6 +11,15 @@ use crate::{Error, Result};
 /// The target and its parent must already exist. The final path is opened without following
 /// symbolic links, and only regular files are accepted. No directory is created implicitly.
 pub fn write_system_hosts(path: &Path, expected_current: &str, proposed: &str) -> Result<()> {
+    write_system_hosts_with_recheck(path, expected_current, proposed, || Ok(()))
+}
+
+fn write_system_hosts_with_recheck(
+    path: &Path,
+    expected_current: &str,
+    proposed: &str,
+    before_recheck: impl FnOnce() -> Result<()>,
+) -> Result<()> {
     let parent = path
         .parent()
         .filter(|parent| !parent.as_os_str().is_empty())
@@ -26,6 +35,8 @@ pub fn write_system_hosts(path: &Path, expected_current: &str, proposed: &str) -
     temporary.flush()?;
     preserve_metadata(temporary.as_file(), &original_metadata)?;
     temporary.as_file().sync_all()?;
+
+    before_recheck()?;
 
     // Recheck both file identity and content after preparing the replacement. This does not
     // claim to eliminate races with non-cooperating writers, but avoids replacing a file that
@@ -187,6 +198,26 @@ mod tests {
 
         assert!(matches!(error, Error::Conflict));
         assert_eq!(fs::read_to_string(&hosts).unwrap(), "changed elsewhere\n");
+        assert_eq!(fs::read_dir(directory.path()).unwrap().count(), 1);
+    }
+
+    #[test]
+    fn rejects_an_external_change_immediately_before_rename() {
+        let directory = tempdir().unwrap();
+        let hosts = directory.path().join("hosts");
+        fs::write(&hosts, "expected\n").unwrap();
+
+        let error = write_system_hosts_with_recheck(&hosts, "expected\n", "proposed\n", || {
+            fs::write(&hosts, "changed before rename\n")?;
+            Ok(())
+        })
+        .unwrap_err();
+
+        assert!(matches!(error, Error::Conflict));
+        assert_eq!(
+            fs::read_to_string(&hosts).unwrap(),
+            "changed before rename\n"
+        );
         assert_eq!(fs::read_dir(directory.path()).unwrap().count(), 1);
     }
 

@@ -13,6 +13,12 @@ fn rejects_host_file_injection_through_fields() {
         .is_err()
     );
     assert!(Profile::new("bad\nprofile").is_err());
+
+    let mut profile = Profile::new("dev").unwrap();
+    profile.id = "bad\n# <<< CrabHosts managed".into();
+    assert!(profile.validate().is_err());
+    profile.id = "x".repeat(129);
+    assert!(profile.validate().is_err());
 }
 
 #[test]

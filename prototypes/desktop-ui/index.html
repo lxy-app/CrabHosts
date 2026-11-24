@@ -95,7 +95,11 @@
     .window-title { display: flex; align-items: center; gap: 9px; font-size: 13px; font-weight: 600; letter-spacing: .01em; }
     .brand-mark { width: 23px; height: 23px; display: grid; place-items: center; border-radius: 7px; background: var(--ivory); color: var(--ivory-ink); }
     .brand-mark .icon { width: 15px; height: 15px; stroke-width: 1.9; }
-    .prototype-label { margin-left: auto; display: flex; align-items: center; gap: 7px; color: var(--muted); font-size: 12px; }
+    .global-search-trigger { width: min(340px, 30vw); min-width: 190px; height: 32px; display: flex; align-items: center; gap: 8px; margin-left: auto; padding: 0 8px 0 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--field); color: var(--muted); font-size: 12px; text-align: left; cursor: pointer; transition: border-color .16s, background .16s, color .16s; }
+    .global-search-trigger:hover { border-color: #505148; background: #1d1e1b; color: var(--text-soft); }
+    .global-search-trigger .icon { width: 14px; height: 14px; }
+    .global-search-trigger kbd { min-width: 30px; margin-left: auto; padding: 2px 5px; border: 1px solid var(--border); border-radius: 5px; background: #20211e; color: var(--faint); font-family: inherit; font-size: 10px; line-height: 1.2; text-align: center; }
+    .prototype-label { margin-left: 16px; display: flex; align-items: center; gap: 7px; color: var(--muted); font-size: 12px; white-space: nowrap; }
     .prototype-label::before { content: ""; width: 5px; height: 5px; border-radius: 50%; background: #aaa99f; }
 
     .app-body { min-height: 0; display: grid; grid-template-columns: 258px minmax(0, 1fr); }
@@ -136,7 +140,7 @@
     body.reduce-motion *, body.reduce-motion *::before, body.reduce-motion *::after { scroll-behavior: auto !important; transition: none !important; animation: none !important; }
 
     .main { min-width: 0; min-height: 0; overflow: auto; background: var(--window); }
-    .content { width: 100%; max-width: 1500px; min-height: 100%; margin: 0 auto; padding: 26px 28px 18px; display: grid; grid-template-rows: auto minmax(230px, 1fr) auto 206px auto; gap: 16px; }
+    .content { width: 100%; max-width: 1500px; min-height: 100%; margin: 0 auto; padding: 26px 28px 18px; display: grid; grid-template-rows: auto minmax(230px, 1fr) auto 272px auto; gap: 16px; }
     .profile-header { display: flex; align-items: center; gap: 20px; min-height: 54px; }
     .profile-title { min-width: 0; }
     .eyebrow { margin-bottom: 7px; color: var(--muted); font-size: 11px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; }
@@ -160,6 +164,18 @@
     .card-header .subtle { color: var(--muted); font-size: 12px; }
     .card-header .end { margin-left: auto; }
     .entries-card { min-height: 230px; display: flex; flex-direction: column; }
+    .entry-search { position: relative; width: 250px; flex: 0 1 250px; margin-left: auto; display: flex; align-items: center; }
+    .entry-search > .icon { position: absolute; left: 10px; z-index: 1; width: 14px; height: 14px; color: var(--faint); pointer-events: none; }
+    .entry-search input { width: 100%; height: 34px; padding: 0 33px 0 32px; border: 1px solid var(--border); border-radius: 8px; background: var(--field); color: var(--text); font-size: 12px; transition: border-color .16s, background .16s; }
+    .entry-search input::placeholder { color: var(--faint); }
+    .entry-search input:hover { border-color: #43443d; }
+    .entry-search input:focus { border-color: #8d8b80; background: #191a17; }
+    .entry-search-clear { position: absolute; right: 5px; width: 25px; height: 25px; display: grid; place-items: center; padding: 0; border: 0; border-radius: 6px; background: transparent; color: var(--muted); cursor: pointer; }
+    .entry-search-clear:hover { background: var(--surface-hover); color: var(--text); }
+    .entry-search-clear .icon { width: 13px; height: 13px; }
+    .entries-card .readonly.end { margin-left: 0; white-space: nowrap; }
+    .entry-value mark, .search-result mark { padding: 0 1px; border-radius: 3px; background: rgba(233, 230, 220, .16); color: var(--ivory); }
+    .entry-table tr.search-target { background: #2b2c27; box-shadow: inset 2px 0 var(--ivory); }
     .table-wrap { min-height: 0; flex: 1; overflow: auto; }
     .entry-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
     .entry-table th { height: 38px; padding: 0 14px; border-bottom: 1px solid var(--border-soft); color: var(--muted); font-size: 11px; font-weight: 500; text-align: left; }
@@ -182,6 +198,9 @@
     .row-delete { width: 30px; height: 30px; display: inline-grid; place-items: center; padding: 0; border: 0; border-radius: 7px; background: transparent; color: var(--faint); cursor: pointer; }
     .row-delete:hover { background: var(--danger-soft); color: var(--danger); }
     .empty-state { padding: 36px 20px; color: var(--muted); text-align: center; }
+    .empty-state strong { display: block; color: var(--text-soft); font-size: 13px; font-weight: 550; }
+    .empty-state > span { display: block; max-width: 440px; margin: 6px auto 0; color: var(--muted); font-size: 12px; line-height: 1.6; overflow-wrap: anywhere; }
+    .empty-state .button { margin-top: 13px; }
 
     .add-card { padding: 15px 18px 17px; }
     .add-title { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; color: var(--text-soft); font-size: 12px; font-weight: 600; }
@@ -195,20 +214,31 @@
     .field input:focus { border-color: #8d8b80; background: #191a17; }
     .add-button { height: 40px; min-width: 108px; }
 
-    .preview-card { min-height: 206px; display: flex; flex-direction: column; }
+    .preview-card { min-height: 272px; display: flex; flex-direction: column; }
     .preview-card .card-header { min-height: 50px; padding: 0 14px 0 18px; }
     .segmented { display: flex; gap: 3px; padding: 3px; border: 1px solid var(--border-soft); border-radius: 9px; background: #151613; }
     .segment { min-height: 29px; padding: 0 11px; border: 0; border-radius: 6px; background: transparent; color: var(--muted); font-size: 12px; cursor: pointer; }
     .segment:hover { color: var(--text-soft); }
     .segment.active { background: #30312c; color: var(--text); box-shadow: 0 1px 2px rgba(0,0,0,.22); }
-    .preview-actions { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+    .preview-actions { margin-left: auto; display: flex; align-items: center; gap: 9px; }
     .readonly { display: inline-flex; align-items: center; gap: 5px; color: var(--muted); font-size: 11px; }
-    .code-panel { min-height: 0; flex: 1; margin: 0; padding: 12px 0; overflow: auto; background: #151613; color: #bbbcb2; font-family: "SF Mono", ui-monospace, Menlo, Monaco, Consolas, monospace; font-size: 12px; line-height: 1.8; tab-size: 2; }
-    .code-line { display: grid; grid-template-columns: 46px minmax(max-content, 1fr); min-height: 22px; padding-right: 18px; white-space: pre; }
+    .preview-stats { color: var(--faint); font-size: 11px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+    .preview-body { position: relative; min-height: 0; flex: 1; overflow: hidden; background: #151613; }
+    .code-panel { margin: 0; padding: 6px 0; overflow: hidden; background: #151613; color: #bbbcb2; font-family: "SF Mono", ui-monospace, Menlo, Monaco, Consolas, monospace; font-size: 12px; line-height: 22px; tab-size: 2; }
+    .code-line { display: grid; grid-template-columns: 46px minmax(max-content, 1fr); height: 22px; padding-right: 18px; white-space: pre; }
     .line-number { padding-right: 13px; color: #5f6059; text-align: right; user-select: none; }
     .code-line.added { background: rgba(128, 151, 120, .08); color: #b8c6b1; }
     .code-line.removed { background: rgba(166, 108, 99, .08); color: #d0aaa4; }
+    .code-line.hunk { color: #93a291; background: rgba(147, 162, 145, .07); }
+    .code-line.meta { color: var(--text-soft); font-weight: 500; }
+    .code-line.comment { color: #85877e; }
     .code-line.emphasis { color: var(--text); }
+    .preview-fade { position: absolute; left: 0; right: 0; bottom: 0; height: 10px; background: linear-gradient(transparent, #151613); pointer-events: none; }
+    .preview-foot { min-height: 30px; display: flex; align-items: center; gap: 10px; padding: 0 14px 0 18px; border-top: 1px solid var(--border-soft); background: #171815; color: var(--muted); font-size: 11px; }
+    .preview-count { color: var(--faint); white-space: nowrap; font-variant-numeric: tabular-nums; }
+    .preview-open { margin-left: auto; display: inline-flex; align-items: center; gap: 5px; min-height: 24px; padding: 0 7px; border: 1px solid transparent; border-radius: 6px; background: transparent; color: var(--text-soft); font-size: 11px; white-space: nowrap; cursor: pointer; }
+    .preview-open:hover { border-color: var(--border); background: var(--surface-hover); color: var(--text); }
+    .preview-open .icon { width: 13px; height: 13px; }
     .statusbar { display: flex; align-items: center; gap: 8px; min-height: 20px; padding: 0 2px; color: var(--muted); font-size: 11px; }
     .status-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--sage); }
     .status-dot.dirty { background: #c5a55d; }
@@ -308,8 +338,106 @@
     .assurance-list { display: grid; gap: 9px; margin: 0; padding: 0; list-style: none; }
     .assurance-list li { display: flex; align-items: flex-start; gap: 9px; color: var(--text-soft); font-size: 12px; }
     .assurance-list .icon { margin-top: 3px; color: var(--sage); }
-    .system-code { max-height: 340px; margin: 0; padding: 15px; overflow: auto; border: 1px solid var(--border-soft); border-radius: 10px; background: #141512; color: #c6c6bb; font-family: "SF Mono", ui-monospace, Menlo, Monaco, Consolas, monospace; font-size: 12px; line-height: 1.75; white-space: pre-wrap; }
     .form-error { min-height: 18px; margin-top: 7px; color: var(--danger); font-size: 12px; }
+    .modal.destructive { border-color: #55403b; }
+    .modal.destructive .modal-kicker { color: var(--danger); }
+    .modal.destructive .modal-footer .button.danger { border-color: var(--danger); background: var(--danger); color: #2a1c1a; font-weight: 650; }
+    .modal.destructive .modal-footer .button.danger:hover { border-color: #e2bbb4; background: #e2bbb4; color: #211614; }
+    .delete-object { display: flex; align-items: center; gap: 12px; padding: 13px; border: 1px solid var(--border-soft); border-radius: 10px; background: #181916; }
+    .delete-object-icon { width: 38px; height: 38px; flex: 0 0 38px; display: grid; place-items: center; border: 1px solid #563d39; border-radius: 9px; background: var(--danger-soft); color: var(--danger); }
+    .delete-object-copy { min-width: 0; }
+    .delete-object-copy > span { display: block; color: var(--muted); font-size: 11px; }
+    .delete-object-copy strong { display: block; margin-top: 2px; overflow-wrap: anywhere; color: var(--text); font-size: 14px; font-weight: 600; }
+    .delete-object-copy small { display: block; margin-top: 3px; color: var(--muted); font-size: 11px; }
+    .delete-warning { margin-top: 14px; padding: 12px 13px; border: 1px solid #4b3532; border-radius: 9px; background: var(--danger-soft); }
+    .delete-warning strong { display: block; color: var(--danger); font-size: 12px; font-weight: 600; }
+    .delete-warning span { display: block; margin-top: 4px; color: #c8b3ae; font-size: 12px; line-height: 1.55; }
+    .delete-note { margin: 13px 0 0 !important; color: var(--muted); font-size: 12px; }
+    .delete-assurances { margin-top: 13px; }
+    .delete-confirm-field { margin-top: 17px; }
+    .delete-confirm-field label strong { color: var(--text); font-weight: 600; }
+    .delete-confirm-field .form-hint { margin-top: 7px; color: var(--muted); font-size: 11px; }
+
+    .search-layer { position: fixed; inset: 0; z-index: 25; display: none; align-items: flex-start; justify-content: center; padding: 72px 24px 24px; background: rgba(5, 6, 5, .68); backdrop-filter: blur(5px); }
+    .search-layer.open { display: flex; }
+    .global-search { width: min(680px, calc(100vw - 48px)); max-height: min(620px, calc(100vh - 112px)); display: flex; flex-direction: column; overflow: hidden; border: 1px solid #45463f; border-radius: 15px; background: #1d1e1b; box-shadow: 0 26px 80px rgba(0, 0, 0, .52), 0 1px 0 rgba(255,255,255,.04) inset; }
+    .global-search-head { min-height: 60px; display: flex; align-items: center; gap: 10px; padding: 0 12px 0 18px; border-bottom: 1px solid var(--border); }
+    .global-search-head > .icon { width: 19px; height: 19px; color: var(--text-soft); }
+    .global-search-input { min-width: 0; height: 46px; flex: 1; padding: 0; border: 0; background: transparent; color: var(--text); font-size: 16px; }
+    .global-search-input::placeholder { color: var(--faint); }
+    .global-search-input:focus-visible { outline: none; }
+    .global-search-clear { width: 28px; height: 28px; flex: 0 0 28px; }
+    .global-search-close { width: 34px; height: 34px; flex: 0 0 34px; margin-left: 2px; border-color: var(--border); background: var(--surface-raised); }
+    .global-search-scope { min-height: 38px; display: flex; align-items: center; gap: 8px; padding: 0 18px; border-bottom: 1px solid var(--border-soft); background: #191a17; color: var(--muted); font-size: 11px; }
+    .search-scope-label { display: inline-flex; align-items: center; gap: 6px; color: var(--text-soft); }
+    .search-scope-label::before { content: ""; width: 5px; height: 5px; border-radius: 50%; background: var(--sage); }
+    .global-search-count { margin-left: auto; color: var(--faint); font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .global-search-results { min-height: 196px; flex: 1; overflow: auto; padding: 8px; scrollbar-width: thin; scrollbar-color: #3d3e37 #1d1e1b; }
+    .search-group + .search-group { margin-top: 7px; }
+    .search-group-title { display: flex; align-items: center; gap: 8px; min-height: 30px; padding: 0 10px; color: var(--muted); font-size: 11px; font-weight: 550; }
+    .search-group-title span:last-child { margin-left: auto; color: var(--faint); font-weight: 400; }
+    .search-result { width: 100%; min-height: 58px; display: flex; align-items: center; gap: 11px; padding: 9px 11px; border: 1px solid transparent; border-radius: 9px; background: transparent; color: var(--text-soft); text-align: left; cursor: pointer; }
+    .search-result:hover { background: #242521; }
+    .search-result.active { border-color: #45463f; background: var(--surface-selected); color: var(--text); }
+    .search-result-icon { width: 32px; height: 32px; flex: 0 0 32px; display: grid; place-items: center; border: 1px solid var(--border); border-radius: 8px; background: #191a17; color: var(--muted); }
+    .search-result.active .search-result-icon { border-color: #505148; color: var(--ivory); }
+    .search-result-copy { min-width: 0; flex: 1; }
+    .search-result-main { display: flex; align-items: baseline; gap: 9px; min-width: 0; font-size: 13px; font-weight: 550; }
+    .search-result-ip { flex: 0 0 auto; color: var(--text-soft); font-size: 12px; font-weight: 400; }
+    .search-result-hosts { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .search-result-sub { display: block; margin-top: 4px; overflow: hidden; color: var(--muted); font-size: 11px; font-weight: 400; text-overflow: ellipsis; white-space: nowrap; }
+    .search-result-meta { flex: 0 0 auto; display: flex; align-items: center; gap: 8px; color: var(--faint); font-size: 10px; white-space: nowrap; }
+    .search-entry-state { display: inline-flex; align-items: center; gap: 5px; color: var(--sage); }
+    .search-entry-state::before { content: ""; width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
+    .search-entry-state.disabled { color: var(--faint); }
+    .search-empty { min-height: 180px; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 22px; color: var(--muted); text-align: center; }
+    .search-empty > .icon { width: 25px; height: 25px; margin-bottom: 11px; color: var(--faint); }
+    .search-empty strong { color: var(--text-soft); font-size: 13px; font-weight: 550; }
+    .search-empty p { max-width: 410px; margin: 7px 0 0; color: var(--muted); font-size: 12px; line-height: 1.6; }
+    .search-examples { display: flex; flex-wrap: wrap; justify-content: center; gap: 7px; margin-top: 15px; }
+    .search-example { min-height: 29px; padding: 0 10px; border: 1px solid var(--border); border-radius: 7px; background: #20211e; color: var(--text-soft); font-size: 11px; cursor: pointer; }
+    .search-example:hover { border-color: #505148; background: var(--surface-hover); color: var(--text); }
+    .global-search-footer { min-height: 42px; display: flex; align-items: center; gap: 14px; padding: 0 16px; border-top: 1px solid var(--border-soft); background: #191a17; color: var(--faint); font-size: 10px; }
+    .global-search-footer > span { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+    .global-search-footer kbd { min-width: 20px; padding: 2px 5px; border: 1px solid var(--border); border-radius: 4px; background: #20211e; color: var(--muted); font-family: inherit; font-size: 10px; text-align: center; }
+    .global-search-footer .search-safety { margin-left: auto; color: var(--muted); }
+
+    .viewer-layer { position: fixed; inset: 0; z-index: 30; display: none; align-items: center; justify-content: center; padding: 24px; background: rgba(5, 6, 5, .74); backdrop-filter: blur(6px); }
+    .viewer-layer.open { display: flex; }
+    .viewer { width: min(1180px, calc(100vw - 48px)); height: min(860px, calc(100vh - 48px)); display: flex; flex-direction: column; overflow: hidden; border: 1px solid #3f4039; border-radius: 16px; background: var(--surface); box-shadow: 0 28px 80px rgba(0, 0, 0, .5), 0 1px 0 rgba(255, 255, 255, .04) inset; }
+    .viewer-header { min-height: 68px; display: flex; align-items: center; gap: 16px; padding: 14px 18px 12px 22px; border-bottom: 1px solid var(--border-soft); }
+    .viewer-heading { min-width: 0; flex: 1; }
+    .viewer-kicker { margin-bottom: 6px; color: var(--muted); font-size: 11px; letter-spacing: .02em; }
+    .viewer-title-line { display: flex; align-items: center; gap: 10px; min-width: 0; }
+    .viewer-title-line h2 { margin: 0; font-size: 19px; letter-spacing: -.02em; }
+    .viewer-profile { display: inline-flex; align-items: center; gap: 6px; max-width: 220px; padding: 3px 8px; overflow: hidden; border: 1px solid var(--border); border-radius: 6px; color: var(--text-soft); font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+    .viewer-profile::before { content: ""; width: 5px; height: 5px; flex: 0 0 auto; border-radius: 50%; background: var(--sage); }
+    .viewer-profile.path::before { background: var(--faint); }
+    .viewer-header-actions { display: flex; align-items: center; gap: 12px; }
+    .viewer-kbd { display: inline-flex; align-items: center; gap: 5px; color: var(--faint); font-size: 11px; white-space: nowrap; }
+    .viewer-kbd kbd { min-width: 22px; padding: 2px 5px; border: 1px solid var(--border); border-bottom-color: #43443d; border-radius: 5px; background: #191a17; color: var(--muted); font-family: inherit; font-size: 10px; text-align: center; }
+    .viewer-close { width: 34px; height: 34px; flex: 0 0 34px; border-color: var(--border); background: var(--surface-raised); }
+    .viewer-toolbar { min-height: 52px; display: flex; align-items: center; gap: 12px; padding: 0 18px 0 22px; border-bottom: 1px solid var(--border-soft); background: #191a17; }
+    .viewer-toolbar-end { margin-left: auto; display: flex; align-items: center; gap: 7px; }
+    .viewer-body { position: relative; min-height: 0; flex: 1; overflow: hidden; background: #151613; }
+    .viewer-code { height: 100%; margin: 0; padding: 10px 0 20px; overflow: auto; background: #151613; color: #bbbcb2; font-family: "SF Mono", ui-monospace, Menlo, Monaco, Consolas, monospace; font-size: 12px; line-height: 22px; tab-size: 2; scrollbar-width: thin; scrollbar-color: #3d3e37 #151613; }
+    .viewer-code .code-line { grid-template-columns: 56px minmax(max-content, 1fr); }
+    .viewer-code::-webkit-scrollbar { width: 11px; height: 11px; }
+    .viewer-code::-webkit-scrollbar-track { background: #151613; }
+    .viewer-code::-webkit-scrollbar-thumb { border: 3px solid #151613; border-radius: 6px; background: #3d3e37; }
+    .viewer-code::-webkit-scrollbar-thumb:hover { background: #4b4c44; }
+    .viewer-code.wrap .code-line { grid-template-columns: 56px minmax(0, 1fr); height: auto; min-height: 22px; white-space: pre-wrap; overflow-wrap: anywhere; }
+    .viewer-code.hide-gutter .code-line { grid-template-columns: 0 minmax(max-content, 1fr); }
+    .viewer-code.hide-gutter.wrap .code-line { grid-template-columns: 0 minmax(0, 1fr); }
+    .viewer-code.hide-gutter .line-number { display: none; }
+    .viewer-fade { position: absolute; left: 0; right: 0; height: 22px; pointer-events: none; opacity: 0; transition: opacity .15s; }
+    .viewer-fade.top { top: 0; background: linear-gradient(#151613, rgba(21, 22, 19, 0)); }
+    .viewer-fade.bottom { bottom: 0; background: linear-gradient(rgba(21, 22, 19, 0), #151613); }
+    .viewer-body.scrolled .viewer-fade.top { opacity: 1; }
+    .viewer-body.more .viewer-fade.bottom { opacity: 1; }
+    .viewer-footer { min-height: 46px; display: flex; align-items: center; gap: 9px; padding: 0 20px; border-top: 1px solid var(--border-soft); background: #191a17; color: var(--muted); font-size: 11px; }
+    .viewer-stats { margin-left: auto; color: var(--text-soft); white-space: nowrap; font-variant-numeric: tabular-nums; }
+    .viewer-hint { color: var(--faint); white-space: nowrap; }
 
     .toast { position: fixed; left: 50%; bottom: 28px; z-index: 40; display: flex; align-items: center; gap: 9px; max-width: calc(100vw - 40px); padding: 11px 15px; border: 1px solid #46473f; border-radius: 10px; background: #2a2b26; color: var(--text); box-shadow: 0 12px 36px rgba(0,0,0,.35); font-size: 13px; opacity: 0; pointer-events: none; transform: translate(-50%, 10px); transition: opacity .18s, transform .18s; }
     .toast.show { opacity: 1; transform: translate(-50%, 0); }
@@ -323,6 +451,11 @@
       .header-actions { gap: 6px; }
       .button { padding: 0 11px; }
       .title-meta { display: none; }
+      .prototype-label { display: none; }
+      .global-search-trigger { width: min(320px, 36vw); }
+      .entries-card .card-header > .subtle { display: block; }
+      .entry-search { width: 220px; flex-basis: 220px; }
+      .entries-card .readonly.end { display: none; }
       .entry-table th:nth-child(4), .entry-table td:nth-child(4) { width: 110px; }
       .add-form { grid-template-columns: minmax(125px, .75fr) minmax(170px, 1.5fr) minmax(110px, .75fr) auto; gap: 8px; }
       .add-card { padding-left: 14px; padding-right: 14px; }
@@ -335,15 +468,27 @@
       .settings-segmented .segment { min-width: 0; padding-left: 9px; padding-right: 9px; }
       .autosave-note { display: none; }
       .backup-path { max-width: 180px; }
+      .viewer-layer { padding: 16px; }
+      .viewer { width: calc(100vw - 32px); height: calc(100vh - 32px); }
+      .viewer-header { padding: 12px 14px 10px 16px; }
+      .viewer-toolbar { padding: 0 14px 0 16px; }
+      .viewer-footer { padding: 0 16px; }
     }
     @media (max-height: 760px) {
-      .content { grid-template-rows: auto minmax(190px, 1fr) auto 178px auto; }
+      .content { grid-template-rows: auto minmax(190px, 1fr) auto 232px auto; }
       .entries-card { min-height: 190px; }
-      .preview-card { min-height: 178px; }
+      .preview-card { min-height: 232px; }
+      .viewer-header { min-height: 60px; }
+      .viewer-toolbar { min-height: 46px; }
+      .viewer-footer { min-height: 42px; }
       .sidebar { padding-top: 18px; }
       .profile-list { margin-top: 12px; }
       .profile-item { min-height: 56px; }
       .safety-note { padding: 10px; }
+      .search-layer { padding-top: 44px; }
+      .global-search { max-height: calc(100vh - 72px); }
+      .global-search-results { min-height: 140px; }
+      .search-empty { min-height: 140px; padding: 16px; }
     }
     @media (prefers-reduced-motion: reduce) {
       *, *::before, *::after { scroll-behavior: auto !important; transition: none !important; animation: none !important; }
@@ -354,6 +499,7 @@
   <svg width="0" height="0" aria-hidden="true" style="position:absolute">
     <symbol id="i-crab" viewBox="0 0 24 24"><path d="M8 9 5.5 6.5M16 9l2.5-2.5M7 12H3m18 0h-4M8 16l-3 2m11-2 3 2M9 8V5m6 3V5"/><rect x="7" y="8" width="10" height="10" rx="4"/><path d="M10 12h.01M14 12h.01"/></symbol>
     <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="10.8" cy="10.8" r="6.8"/><path d="m16 16 4.2 4.2"/></symbol>
     <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 6v5h-5M4 18v-5h5"/><path d="M18.2 9A7 7 0 0 0 6 6.7L4 11m16 2-2 4.3A7 7 0 0 1 5.8 15"/></symbol>
     <symbol id="i-folder" viewBox="0 0 24 24"><path d="M3 7.5V6a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"/><path d="M3 9h18"/></symbol>
     <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3m3 0-1 13H7L6 7m4 4v5m4-5v5"/></symbol>
@@ -373,6 +519,10 @@
     <symbol id="i-back" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></symbol>
     <symbol id="i-wifi" viewBox="0 0 24 24"><path d="M3 9a14 14 0 0 1 18 0M6 13a9 9 0 0 1 12 0m-9 4a4.5 4.5 0 0 1 6 0m-3 3h.01"/></symbol>
     <symbol id="i-battery" viewBox="0 0 24 24"><rect x="2" y="6" width="18" height="12" rx="3"/><path d="M22 10v4M5 9h11v6H5Z"/></symbol>
+    <symbol id="i-expand" viewBox="0 0 24 24"><path d="M9 4H4v5m11-5h5v5M9 20H4v-5m11 5h5v-5"/></symbol>
+    <symbol id="i-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M15 5H6a1 1 0 0 0-1 1v9"/></symbol>
+    <symbol id="i-wrap" viewBox="0 0 24 24"><path d="M4 6h16M4 11h11a3.5 3.5 0 0 1 0 7h-2M4 18h4"/><path d="m15 16 3 2-3 2"/></symbol>
+    <symbol id="i-hash" viewBox="0 0 24 24"><path d="M10 3 8 21M16 3l-2 18M3 9h18M3 15h18"/></symbol>
   </svg>
 
   <div class="desktop-stage">
@@ -400,7 +550,8 @@
     <header class="titlebar">
       <div class="traffic"><button id="window-close" aria-label="关闭窗口" title="关闭窗口"></button><i aria-hidden="true"></i><i aria-hidden="true"></i></div>
       <div class="window-title"><span class="brand-mark"><svg class="icon"><use href="#i-crab"/></svg></span>CrabHosts</div>
-      <div class="prototype-label">高保真交互原型 · 模拟数据</div>
+      <button class="global-search-trigger" id="open-global-search" aria-haspopup="dialog" title="全局搜索（⌘K / Ctrl K）"><svg class="icon"><use href="#i-search"/></svg><span>全局搜索</span><kbd>⌘K</kbd></button>
+      <div class="prototype-label">高保真原型 · 模拟数据</div>
     </header>
 
     <div class="app-body">
@@ -434,7 +585,7 @@
           </section>
 
           <section class="card entries-card" aria-labelledby="entries-title">
-            <div class="card-header"><h3 id="entries-title">Hosts 记录</h3><span class="subtle" id="entries-subtitle">管理当前 Profile 中的映射</span><span class="readonly end"><svg class="icon icon-sm"><use href="#i-info"/></svg>仅保存到 Profile</span></div>
+            <div class="card-header"><h3 id="entries-title">Hosts 记录</h3><span class="subtle" id="entries-subtitle">管理当前 Profile 中的映射</span><div class="entry-search" role="search"><svg class="icon"><use href="#i-search"/></svg><input id="entry-search-input" type="text" placeholder="搜索域名或 IP" aria-label="在当前 Profile 中按域名或 IP 搜索" title="搜索当前 Profile（⌘F / Ctrl F）" autocomplete="off" spellcheck="false"><button class="entry-search-clear" id="entry-search-clear" aria-label="清除当前 Profile 搜索" title="清除搜索" hidden><svg class="icon"><use href="#i-close"/></svg></button></div><span class="readonly end"><svg class="icon icon-sm"><use href="#i-info"/></svg>仅保存到 Profile</span></div>
             <div class="table-wrap">
               <table class="entry-table">
                 <thead><tr><th>状态</th><th>IP 地址</th><th>Hostname</th><th>备注</th><th><span class="sr-only">操作</span></th></tr></thead>
@@ -461,11 +612,20 @@
                 <button class="segment" id="tab-system" role="tab" aria-selected="false">系统 hosts</button>
               </div>
               <div class="preview-actions">
+                <span class="preview-stats" id="preview-stats">共 37 行 · +4 −22</span>
                 <span class="readonly"><svg class="icon icon-sm"><use href="#i-lock"/></svg>只读</span>
                 <button class="button small quiet" id="import-system"><svg class="icon icon-sm"><use href="#i-import"/></svg>从系统 hosts 导入</button>
+                <button class="button small quiet" id="expand-preview" title="全屏查看（⌘⇧F）" aria-haspopup="dialog"><svg class="icon icon-sm"><use href="#i-expand"/></svg>全屏</button>
               </div>
             </div>
-            <pre class="code-panel" id="code-panel" aria-live="polite"></pre>
+            <div class="preview-body" id="preview-body" role="group" aria-label="只读预览内容">
+              <pre class="code-panel" id="code-panel"></pre>
+              <div class="preview-fade" aria-hidden="true"></div>
+            </div>
+            <div class="preview-foot">
+              <span class="preview-count" id="preview-count">共 37 行 · 仅显示前 8 行</span>
+              <button class="preview-open" id="expand-preview-foot"><svg class="icon"><use href="#i-expand"/></svg>全屏查看</button>
+            </div>
           </section>
 
           <footer class="statusbar"><span class="status-dot" id="workspace-status-dot"></span><span id="status-text">已加载 4 个 Profile</span><span class="status-path">系统 hosts：<span class="mono">/etc/hosts</span></span></footer>
@@ -517,7 +677,7 @@
                 <h3 class="settings-group-title">应用信息</h3>
                 <div class="settings-card"><div class="about-hero"><span class="brand-mark"><svg class="icon"><use href="#i-crab"/></svg></span><div><h3>CrabHosts</h3><p>安全、清晰的 hosts Profile 管理工具</p></div><span class="about-version mono">Prototype 0.2</span></div><div class="setting-row"><div class="setting-copy"><strong>安全与事实边界</strong><span>查看系统写入、Helper 授权和原型模拟范围说明。</span></div><div class="setting-control"><button class="button small" id="about-safety">查看说明</button></div></div></div>
                 <h3 class="settings-group-title">偏好设置</h3>
-                <div class="settings-card"><div class="setting-row"><div class="setting-copy"><strong>恢复默认偏好设置</strong><span>只重置本页应用偏好，不删除 Profile、备份或系统 hosts 内容。</span></div><div class="setting-control"><button class="button small danger" id="reset-preferences">恢复默认</button></div></div></div>
+                <div class="settings-card"><div class="setting-row"><div class="setting-copy"><strong>恢复默认偏好设置</strong><span>只重置本页应用偏好，不删除 Profile 或系统 hosts；备份上限降低时会先确认。</span></div><div class="setting-control"><button class="button small danger" id="reset-preferences">恢复默认</button></div></div></div>
               </section>
             </div>
           </div>
@@ -538,6 +698,63 @@
       <div class="modal-footer" id="modal-footer"></div>
     </section>
   </div>
+
+  <div class="search-layer" id="global-search-layer" aria-hidden="true">
+    <section class="global-search" id="global-search" role="dialog" aria-modal="true" aria-labelledby="global-search-title">
+      <h2 class="sr-only" id="global-search-title">全局搜索</h2>
+      <div class="global-search-head">
+        <svg class="icon"><use href="#i-search"/></svg>
+        <input class="global-search-input" id="global-search-input" type="text" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="global-search-results" placeholder="搜索 Profile、域名或 IP" autocomplete="off" spellcheck="false">
+        <button class="icon-button global-search-clear" id="global-search-clear" aria-label="清除全局搜索" title="清除搜索" hidden><svg class="icon icon-sm"><use href="#i-close"/></svg></button>
+        <button class="icon-button global-search-close" id="global-search-close" aria-label="关闭全局搜索" title="关闭（Esc）"><svg class="icon"><use href="#i-close"/></svg></button>
+      </div>
+      <div class="global-search-scope"><span class="search-scope-label">全部 Profile</span><span>域名 / IP 模糊匹配</span><span class="global-search-count" id="global-search-count"></span></div>
+      <div class="global-search-results" id="global-search-results" role="listbox" aria-label="全局搜索结果"></div>
+      <footer class="global-search-footer"><span><kbd>↑</kbd><kbd>↓</kbd>选择</span><span><kbd>Enter</kbd>打开</span><span><kbd>Esc</kbd>关闭</span><span class="search-safety">仅导航与筛选 · 不写入系统</span></footer>
+    </section>
+  </div>
+
+  <div class="viewer-layer" id="viewer-layer" aria-hidden="true">
+    <section class="viewer" id="viewer" role="dialog" aria-modal="true" aria-labelledby="viewer-title" aria-describedby="viewer-note">
+      <header class="viewer-header">
+        <div class="viewer-heading">
+          <div class="viewer-kicker">只读预览 · 不会写入系统 hosts</div>
+          <div class="viewer-title-line">
+            <h2 id="viewer-title">差异预览</h2>
+            <span class="viewer-profile" id="viewer-profile">lxy</span>
+            <span class="readonly"><svg class="icon icon-sm"><use href="#i-lock"/></svg>只读</span>
+          </div>
+        </div>
+        <div class="viewer-header-actions">
+          <span class="viewer-kbd"><kbd>Esc</kbd>关闭</span>
+          <button class="icon-button viewer-close" id="viewer-close" aria-label="关闭全屏预览"><svg class="icon"><use href="#i-close"/></svg></button>
+        </div>
+      </header>
+      <div class="viewer-toolbar">
+        <div class="segmented" role="tablist" aria-label="全屏预览类型">
+          <button class="segment active" id="viewer-tab-diff" role="tab" aria-selected="true">差异预览</button>
+          <button class="segment" id="viewer-tab-system" role="tab" aria-selected="false">系统 hosts</button>
+        </div>
+        <div class="viewer-toolbar-end">
+          <button class="button small quiet" id="viewer-wrap" aria-pressed="false"><svg class="icon icon-sm"><use href="#i-wrap"/></svg>自动换行</button>
+          <button class="button small quiet" id="viewer-gutter" aria-pressed="true"><svg class="icon icon-sm"><use href="#i-hash"/></svg>行号</button>
+          <button class="button small quiet" id="viewer-copy"><svg class="icon icon-sm"><use href="#i-copy"/></svg>复制</button>
+        </div>
+      </div>
+      <div class="viewer-body" id="viewer-body">
+        <pre class="viewer-code" id="viewer-code" tabindex="0" aria-label="完整预览内容"></pre>
+        <div class="viewer-fade top" aria-hidden="true"></div>
+        <div class="viewer-fade bottom" aria-hidden="true"></div>
+      </div>
+      <footer class="viewer-footer">
+        <span class="status-dot" aria-hidden="true"></span>
+        <span id="viewer-note">只读预览 · 修改仍需回到主窗口确认应用</span>
+        <span class="viewer-stats" id="viewer-stats">共 37 行 · +4 −22</span>
+        <span class="viewer-hint">系统 hosts：<span class="mono">/etc/hosts</span></span>
+      </footer>
+    </section>
+  </div>
+
   <div class="toast" id="toast" role="status"><svg class="icon icon-sm"><use href="#i-check"/></svg><span id="toast-text"></span></div>
 
   <script>
@@ -566,13 +783,53 @@
     let settingsSection = 'general';
     let isRunning = true;
     let isWindowVisible = true;
-    let pendingDelete = -1;
     let toastTimer;
     let previousFocus;
     let trayPreviousFocus;
+    let viewerPreviousFocus;
+    const viewerState = { wrap: false, gutter: true };
+    let entryQuery = '';
+    let globalQuery = '';
+    let globalActiveIndex = 0;
+    let globalResults = [];
+    let globalPreviousFocus;
+    let locatedEntry = null;
     const $ = (selector) => document.querySelector(selector);
     const esc = (value) => String(value).replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
     const current = () => profiles[selected];
+    const searchTokens = query => String(query).trim().toLowerCase().split(/\s+/).filter(Boolean);
+    const entryMatches = (entry, query) => {
+      const haystack = `${entry.ip}\n${entry.hosts}`.toLowerCase();
+      return searchTokens(query).every(token => haystack.includes(token));
+    };
+    function highlightText(value, query) {
+      const text = String(value);
+      const lower = text.toLowerCase();
+      const ranges = [];
+      searchTokens(query).forEach(token => {
+        let offset = 0;
+        while (offset < lower.length) {
+          const start = lower.indexOf(token, offset);
+          if (start < 0) break;
+          ranges.push([start, start + token.length]);
+          offset = start + token.length;
+        }
+      });
+      if (!ranges.length) return esc(text);
+      ranges.sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+      const merged = [];
+      ranges.forEach(range => {
+        const previous = merged[merged.length - 1];
+        if (previous && range[0] <= previous[1]) previous[1] = Math.max(previous[1], range[1]);
+        else merged.push([...range]);
+      });
+      let cursor = 0;
+      return merged.map(range => {
+        const output = `${esc(text.slice(cursor, range[0]))}<mark>${esc(text.slice(range[0], range[1]))}</mark>`;
+        cursor = range[1];
+        return output;
+      }).join('') + esc(text.slice(cursor));
+    }
 
     function renderProfiles() {
       $('#profile-count').textContent = profiles.length;
@@ -584,6 +841,8 @@
         </button>`).join('');
       document.querySelectorAll('[data-profile]').forEach(button => button.addEventListener('click', () => {
         selected = Number(button.dataset.profile);
+        entryQuery = '';
+        locatedEntry = null;
         activeTab = 'diff';
         setView('profiles');
         renderAll();
@@ -592,18 +851,32 @@
 
     function renderEntries() {
       const profile = current();
+      const query = entryQuery.trim();
+      const filtered = profile.entries.map((entry, index) => ({ entry, index })).filter(item => entryMatches(item.entry, query));
       $('#profile-title').textContent = profile.name;
       const enabled = profile.entries.filter(entry => entry.enabled).length;
       $('#title-meta').textContent = `${profile.entries.length} 条记录 · ${enabled} 条已启用`;
-      $('#entry-rows').innerHTML = profile.entries.map((entry, index) => `
-        <tr class="${entry.enabled ? '' : 'disabled'}">
+      $('#entries-subtitle').textContent = query ? `${filtered.length} / ${profile.entries.length} 条匹配` : '管理当前 Profile 中的映射';
+      if ($('#entry-search-input').value !== entryQuery) $('#entry-search-input').value = entryQuery;
+      $('#entry-search-clear').hidden = !entryQuery;
+      $('#entry-rows').innerHTML = filtered.map(({ entry, index }) => `
+        <tr class="${entry.enabled ? '' : 'disabled'} ${locatedEntry && locatedEntry.profileId === profile.id && locatedEntry.entryIndex === index ? 'search-target' : ''}" data-entry-row="${index}">
           <td><button class="switch ${entry.enabled ? 'on' : ''}" data-toggle="${index}" role="switch" aria-checked="${entry.enabled}" aria-label="${entry.enabled ? '禁用' : '启用'} ${esc(entry.hosts)}"></button></td>
-          <td><div class="entry-value mono" title="${esc(entry.ip)}">${esc(entry.ip)}</div></td>
-          <td><div class="entry-value hostname mono" title="${esc(entry.hosts)}">${esc(entry.hosts)}</div></td>
+          <td><div class="entry-value mono" title="${esc(entry.ip)}">${highlightText(entry.ip, query)}</div></td>
+          <td><div class="entry-value hostname mono" title="${esc(entry.hosts)}">${highlightText(entry.hosts, query)}</div></td>
           <td><div class="entry-value comment" title="${esc(entry.comment || '')}">${esc(entry.comment || '—')}</div></td>
           <td><button class="row-delete" data-delete="${index}" title="删除记录" aria-label="删除 ${esc(entry.hosts)}"><svg class="icon icon-sm"><use href="#i-trash"/></svg></button></td>
         </tr>`).join('');
-      $('#entries-empty').hidden = profile.entries.length > 0;
+      const empty = $('#entries-empty');
+      empty.hidden = filtered.length > 0;
+      if (!filtered.length) {
+        if (profile.entries.length && query) {
+          empty.innerHTML = `<strong>没有匹配的记录</strong><span>未在当前 Profile 的域名或 IP 中找到“${esc(query)}”。备注不参与搜索。</span><button class="button small" id="entry-search-empty-clear">清除搜索</button>`;
+          $('#entry-search-empty-clear').addEventListener('click', () => { entryQuery = ''; locatedEntry = null; renderEntries(); $('#entry-search-input').focus(); });
+        } else {
+          empty.innerHTML = '<strong>这个 Profile 还没有记录</strong><span>请在下方添加 IP 与 Hostname 映射。</span>';
+        }
+      }
       document.querySelectorAll('[data-toggle]').forEach(button => button.addEventListener('click', () => {
         const entry = current().entries[Number(button.dataset.toggle)];
         entry.enabled = !entry.enabled;
@@ -618,30 +891,135 @@
       return `<div class="code-line ${type}"><span class="line-number">${number}</span><span>${esc(text)}</span></div>`;
     }
 
+    const mockSystemHosts = [
+      '##',
+      '# Host Database',
+      '#',
+      '# localhost is used to configure the loopback interface',
+      '# when the system is booting.  Do not change this entry.',
+      '##',
+      '127.0.0.1 localhost',
+      '255.255.255.255 broadcasthost',
+      '::1 localhost',
+      '',
+      '# --- SWITCHHOSTS_CONTENT_END ---',
+      '',
+      '# >>> CrabHosts managed (profile: CH)',
+      '10.20.1.11 ch-api.local',
+      '10.20.1.12 ch-admin.local',
+      '10.20.1.13 ch-static.local',
+      '10.20.1.14 ch-img.local',
+      '10.20.1.15 ch-msg.local',
+      '10.20.1.16 ch-doc.local',
+      '10.20.1.17 ch-search.local',
+      '10.20.1.18 ch-gateway.local',
+      '10.20.1.19 ch-scheduler.local',
+      '10.20.1.20 ch-report.local',
+      '10.20.1.21 ch-bigdata.local',
+      '10.20.1.22 ch-ml.local',
+      '10.20.1.23 ch-monitor.local',
+      '# <<< CrabHosts managed',
+      '',
+      '# 公司内网服务',
+      '10.0.0.5  git.company.local',
+      '10.0.0.6  nexus.company.local',
+      '10.0.0.7  wiki.company.local',
+      '10.0.0.8  ci.company.local',
+      '',
+      '# 本地开发容器',
+      '127.0.0.1 app.docker.local',
+      '127.0.0.1 admin.docker.local',
+      '127.0.0.1 api.docker.local',
+      '',
+      '# --- SWITCHHOSTS_CONTENT_END ---'
+    ];
+
+    const previousManagedBlock = [
+      '# >>> CrabHosts managed (profile: CH)',
+      '10.20.1.11 ch-api.local',
+      '10.20.1.12 ch-admin.local',
+      '10.20.1.13 ch-static.local',
+      '10.20.1.14 ch-img.local',
+      '10.20.1.15 ch-msg.local',
+      '10.20.1.16 ch-doc.local',
+      '10.20.1.17 ch-search.local',
+      '10.20.1.18 ch-gateway.local',
+      '10.20.1.19 ch-scheduler.local',
+      '10.20.1.20 ch-report.local',
+      '10.20.1.21 ch-bigdata.local',
+      '10.20.1.22 ch-ml.local',
+      '10.20.1.23 ch-monitor.local',
+      '10.20.1.24 ch-auth.local ch-oauth.local ch-notify.local ch-export.local ch-import.local ch-legacy-api-v1.internal.company.local ch-legacy-admin.internal.company.local',
+      '10.20.1.25 ch-push.local',
+      '10.20.1.26 ch-upload.local',
+      '10.20.1.27 ch-download.local',
+      '10.20.1.28 ch-task.local',
+      '10.20.1.29 ch-job.local',
+      '# --- SWITCHHOSTS_CONTENT_END ---',
+      '# <<< CrabHosts managed'
+    ];
+
+    let previewCache = { mode: 'diff', lines: [] };
+
+    function previewLinesFor(mode) {
+      if (mode === 'system') {
+        return mockSystemHosts.map(text => {
+          const trimmed = text.trimStart();
+          const kind = trimmed.startsWith('# >>>') || trimmed.startsWith('# <<<') ? 'emphasis' : trimmed.startsWith('#') ? 'comment' : '';
+          return { text, kind };
+        });
+      }
+      const name = current().name;
+      const enabled = current().entries.filter(entry => entry.enabled);
+      const addedBlock = [
+        `# >>> CrabHosts managed (profile: ${name})`,
+        ...(enabled.length ? enabled.map(entry => `${entry.ip} ${entry.hosts}`) : ['# 暂无启用记录']),
+        '# <<< CrabHosts managed'
+      ];
+      return [
+        { text: '--- current-hosts', kind: 'meta' },
+        { text: `+++ crabhosts-${name}`, kind: 'meta' },
+        { text: `@@ -43,${previousManagedBlock.length + 8} +43,${addedBlock.length + 8} @@`, kind: 'hunk' },
+        { text: ' 127.0.0.1 localhost', kind: '' },
+        { text: ' 255.255.255.255 broadcasthost', kind: '' },
+        { text: ' ::1 localhost', kind: '' },
+        ...previousManagedBlock.map(text => ({ text: `-${text}`, kind: 'removed' })),
+        ...addedBlock.map(text => ({ text: `+${text}`, kind: 'added' })),
+        { text: ' # --- SWITCHHOSTS_CONTENT_END ---', kind: '' },
+        { text: ' ', kind: '' },
+        { text: ' # 公司内网服务', kind: '' },
+        { text: ' 10.0.0.5  git.company.local', kind: '' },
+        { text: ' 10.0.0.6  nexus.company.local', kind: '' }
+      ];
+    }
+
+    function previewStats(lines, mode) {
+      if (mode === 'system') return `共 ${lines.length} 行`;
+      const added = lines.filter(line => line.kind === 'added').length;
+      const removed = lines.filter(line => line.kind === 'removed').length;
+      return `共 ${lines.length} 行 · +${added} −${removed}`;
+    }
+
+    function renderInlinePreview() {
+      const body = $('#preview-body');
+      const visible = Math.max(3, Math.floor((body.clientHeight - 12) / 22));
+      const shown = previewCache.lines.slice(0, visible);
+      $('#code-panel').innerHTML = shown.map((line, index) => codeLine(index + 1, line.text, line.kind)).join('');
+      $('#preview-stats').textContent = previewStats(previewCache.lines, previewCache.mode);
+      $('#preview-count').textContent = previewCache.lines.length > visible
+        ? `共 ${previewCache.lines.length} 行 · 仅显示前 ${visible} 行`
+        : `共 ${previewCache.lines.length} 行 · 已全部显示`;
+    }
+
     function renderPreview() {
       const isDiff = activeTab === 'diff';
       $('#tab-diff').classList.toggle('active', isDiff);
       $('#tab-system').classList.toggle('active', !isDiff);
       $('#tab-diff').setAttribute('aria-selected', String(isDiff));
       $('#tab-system').setAttribute('aria-selected', String(!isDiff));
-      let html = '';
-      if (isDiff) {
-        const enabledEntries = current().entries.filter(entry => entry.enabled);
-        const managedLines = enabledEntries.length
-          ? enabledEntries.map(entry => [`${entry.ip} ${entry.hosts}`, 'added'])
-          : [['# 暂无启用记录', '']];
-        const lines = [
-          ['127.0.0.1 localhost', ''],
-          ['', ''],
-          ['# >>> CrabHosts managed', 'emphasis'],
-          ...managedLines,
-          ['# <<< CrabHosts managed', 'emphasis']
-        ];
-        html = lines.map(([text, type], index) => codeLine(index + 1, text, type)).join('');
-      } else {
-        ['##', '# CrabHosts 原型中的系统 hosts 模拟内容', '', '127.0.0.1 localhost', '255.255.255.255 broadcasthost', '::1 localhost'].forEach((line, index) => { html += codeLine(index + 1, line); });
-      }
-      $('#code-panel').innerHTML = html;
+      previewCache = { mode: isDiff ? 'diff' : 'system', lines: previewLinesFor(isDiff ? 'diff' : 'system') };
+      renderInlinePreview();
+      if (viewerOpen()) renderViewer();
     }
 
     function setView(view) {
@@ -701,6 +1079,8 @@
         </button>`).join('');
       document.querySelectorAll('[data-tray-profile]').forEach(button => button.addEventListener('click', () => {
         selected = Number(button.dataset.trayProfile);
+        entryQuery = '';
+        locatedEntry = null;
         activeTab = 'diff';
         showMainWindow();
         setView('profiles');
@@ -785,31 +1165,281 @@
       toastTimer = setTimeout(() => $('#toast').classList.remove('show'), 2600);
     }
 
-    function openModal({ title, kicker = 'CrabHosts', body, buttons, wide = false, onOpen }) {
+    function globalSearchOpen() { return $('#global-search-layer').classList.contains('open'); }
+
+    function updateGlobalActive(scroll = false) {
+      const buttons = [...document.querySelectorAll('[data-global-result]')];
+      buttons.forEach((button, index) => {
+        const active = index === globalActiveIndex;
+        button.classList.toggle('active', active);
+        button.setAttribute('aria-selected', String(active));
+      });
+      const active = buttons[globalActiveIndex];
+      if (active) {
+        $('#global-search-input').setAttribute('aria-activedescendant', active.id);
+        if (scroll) active.scrollIntoView({ block: 'nearest' });
+      } else {
+        $('#global-search-input').removeAttribute('aria-activedescendant');
+      }
+    }
+
+    function renderGlobalSearch() {
+      const query = globalQuery.trim();
+      const results = [];
+      let html = '';
+      $('#global-search-clear').hidden = !globalQuery;
+      if (query) {
+        const tokens = searchTokens(query);
+        const matchingProfiles = profiles.map((profile, index) => ({ profile, index })).filter(({ profile }) => tokens.every(token => profile.name.toLowerCase().includes(token)));
+        if (matchingProfiles.length) {
+          html += `<div class="search-group" role="group" aria-label="Profile 结果"><div class="search-group-title"><span>Profile</span><span>${matchingProfiles.length} 个匹配</span></div>`;
+          matchingProfiles.forEach(({ profile }) => {
+            const resultIndex = results.length;
+            const enabled = profile.entries.filter(entry => entry.enabled).length;
+            results.push({ type: 'profile', profileId: profile.id });
+            html += `<button type="button" class="search-result" id="global-result-${resultIndex}" data-global-result="${resultIndex}" role="option" aria-selected="false" tabindex="-1"><span class="search-result-icon"><svg class="icon icon-sm"><use href="#i-folder"/></svg></span><span class="search-result-copy"><span class="search-result-main"><span class="search-result-hosts">${highlightText(profile.name, query)}</span></span><span class="search-result-sub">${profile.entries.length} 条记录 · ${enabled} 条已启用</span></span><span class="search-result-meta">打开 Profile</span></button>`;
+          });
+          html += '</div>';
+        }
+        profiles.forEach(profile => {
+          const matches = profile.entries.map((entry, entryIndex) => ({ entry, entryIndex })).filter(({ entry }) => entryMatches(entry, query));
+          if (!matches.length) return;
+          html += `<div class="search-group" role="group" aria-label="${esc(profile.name)} 中的记录结果"><div class="search-group-title"><span>${esc(profile.name)}</span><span>${matches.length} 条匹配记录</span></div>`;
+          matches.forEach(({ entry, entryIndex }) => {
+            const resultIndex = results.length;
+            results.push({ type: 'entry', profileId: profile.id, entryIndex });
+            html += `<button type="button" class="search-result" id="global-result-${resultIndex}" data-global-result="${resultIndex}" role="option" aria-selected="false" tabindex="-1"><span class="search-result-icon"><svg class="icon icon-sm"><use href="#i-file"/></svg></span><span class="search-result-copy"><span class="search-result-main"><span class="search-result-ip mono">${highlightText(entry.ip, query)}</span><span class="search-result-hosts mono">${highlightText(entry.hosts, query)}</span></span><span class="search-result-sub">${esc(entry.comment || '无备注')}</span></span><span class="search-result-meta"><span class="search-entry-state ${entry.enabled ? '' : 'disabled'}">${entry.enabled ? '已启用' : '已禁用'}</span><span>定位记录</span></span></button>`;
+          });
+          html += '</div>';
+        });
+      }
+      globalResults = results;
+      globalActiveIndex = results.length ? Math.max(0, Math.min(globalActiveIndex, results.length - 1)) : 0;
+      $('#global-search-count').textContent = query ? `${results.length} 个结果` : '';
+      if (!query) {
+        $('#global-search-results').innerHTML = `<div class="search-empty"><svg class="icon"><use href="#i-search"/></svg><strong>在所有 Profile 中查找</strong><p>输入 Profile 名称、Hostname 连续字符或 IP 片段。匹配不区分大小写，多个空格关键词需同时满足。</p><div class="search-examples"><button class="search-example mono" data-global-example="api">试试 api</button><button class="search-example mono" data-global-example="10.20">试试 10.20</button><button class="search-example mono" data-global-example="staging">试试 staging</button></div></div>`;
+      } else if (!results.length) {
+        $('#global-search-results').innerHTML = `<div class="search-empty"><svg class="icon"><use href="#i-search"/></svg><strong>没有找到“${esc(query)}”</strong><p>可尝试缩短关键词、检查拼写，或只输入一段域名/IP。备注不参与全局记录匹配。</p><div class="search-examples"><button class="search-example" id="global-search-empty-clear">清除搜索</button></div></div>`;
+      } else {
+        $('#global-search-results').innerHTML = html;
+      }
+      document.querySelectorAll('[data-global-result]').forEach(button => button.addEventListener('click', () => activateGlobalResult(Number(button.dataset.globalResult))));
+      document.querySelectorAll('[data-global-example]').forEach(button => button.addEventListener('click', () => {
+        globalQuery = button.dataset.globalExample;
+        globalActiveIndex = 0;
+        $('#global-search-input').value = globalQuery;
+        renderGlobalSearch();
+        $('#global-search-input').focus();
+      }));
+      if ($('#global-search-empty-clear')) $('#global-search-empty-clear').addEventListener('click', () => {
+        globalQuery = '';
+        $('#global-search-input').value = '';
+        renderGlobalSearch();
+        $('#global-search-input').focus();
+      });
+      updateGlobalActive();
+    }
+
+    function moveGlobalActive(direction) {
+      if (!globalResults.length) return;
+      globalActiveIndex = (globalActiveIndex + direction + globalResults.length) % globalResults.length;
+      updateGlobalActive(true);
+    }
+
+    function activateGlobalResult(index) {
+      const result = globalResults[index];
+      if (!result) return;
+      const profileIndex = profiles.findIndex(profile => profile.id === result.profileId);
+      if (profileIndex < 0) return;
+      selected = profileIndex;
+      activeTab = 'diff';
+      setView('profiles');
+      if (result.type === 'profile') {
+        entryQuery = '';
+        locatedEntry = null;
+        closeGlobalSearch(false);
+        renderAll();
+        $('#profile-list .profile-item.selected').focus();
+        notify(`已打开 Profile「${current().name}」；系统 hosts 未修改`);
+        return;
+      }
+      entryQuery = globalQuery.trim();
+      locatedEntry = { profileId: result.profileId, entryIndex: result.entryIndex };
+      closeGlobalSearch(false);
+      renderAll();
+      const row = document.querySelector(`[data-entry-row="${result.entryIndex}"]`);
+      if (row) {
+        row.scrollIntoView({ block: 'nearest' });
+        const control = row.querySelector('[data-toggle]');
+        if (control) control.focus({ preventScroll: true });
+      }
+      notify(`已定位到「${current().name}」中的匹配记录；系统 hosts 未修改`);
+    }
+
+    function openGlobalSearch() {
+      if (!isRunning || !isWindowVisible || viewerOpen() || $('#modal-layer').classList.contains('open')) return;
+      if (globalSearchOpen()) { closeGlobalSearch(); return; }
+      closeTray();
+      globalPreviousFocus = document.activeElement;
+      globalActiveIndex = 0;
+      $('#global-search-layer').classList.add('open');
+      $('#global-search-layer').setAttribute('aria-hidden', 'false');
+      $('#global-search-input').setAttribute('aria-expanded', 'true');
+      document.body.dataset.globalSearchOpen = 'true';
+      renderGlobalSearch();
+      setTimeout(() => { $('#global-search-input').focus(); $('#global-search-input').select(); }, 0);
+    }
+
+    function closeGlobalSearch(returnFocus = true) {
+      if (!globalSearchOpen()) return;
+      $('#global-search-layer').classList.remove('open');
+      $('#global-search-layer').setAttribute('aria-hidden', 'true');
+      $('#global-search-input').setAttribute('aria-expanded', 'false');
+      delete document.body.dataset.globalSearchOpen;
+      const target = globalPreviousFocus;
+      globalPreviousFocus = null;
+      if (returnFocus && target && target.focus && target.isConnected) target.focus();
+    }
+
+    function viewerOpen() { return $('#viewer-layer').classList.contains('open'); }
+
+    function updateViewerScrollState() {
+      const code = $('#viewer-code');
+      const body = $('#viewer-body');
+      const remaining = code.scrollHeight - code.clientHeight - code.scrollTop;
+      body.classList.toggle('scrolled', code.scrollTop > 2);
+      body.classList.toggle('more', remaining > 2);
+    }
+
+    function applyViewerOptions() {
+      $('#viewer-wrap').setAttribute('aria-pressed', String(viewerState.wrap));
+      $('#viewer-gutter').setAttribute('aria-pressed', String(viewerState.gutter));
+      $('#viewer-code').classList.toggle('wrap', viewerState.wrap);
+      $('#viewer-code').classList.toggle('hide-gutter', !viewerState.gutter);
+    }
+
+    function renderViewer() {
+      const isDiff = activeTab === 'diff';
+      $('#viewer-title').textContent = isDiff ? '差异预览' : '系统 hosts';
+      $('#viewer-profile').textContent = isDiff ? current().name : '/etc/hosts';
+      $('#viewer-profile').classList.toggle('path', !isDiff);
+      $('#viewer-tab-diff').classList.toggle('active', isDiff);
+      $('#viewer-tab-system').classList.toggle('active', !isDiff);
+      $('#viewer-tab-diff').setAttribute('aria-selected', String(isDiff));
+      $('#viewer-tab-system').setAttribute('aria-selected', String(!isDiff));
+      $('#viewer-code').innerHTML = previewCache.lines.map((line, index) => codeLine(index + 1, line.text, line.kind)).join('');
+      $('#viewer-stats').textContent = previewStats(previewCache.lines, previewCache.mode);
+      $('#viewer-note').textContent = isDiff
+        ? '只读预览 · 修改仍需回到主窗口确认应用'
+        : '只读预览 · 系统 hosts 原文不会被修改';
+      applyViewerOptions();
+      updateViewerScrollState();
+    }
+
+    function openViewer(trigger) {
+      if (viewerOpen()) return;
+      closeTray();
+      const active = document.activeElement;
+      viewerPreviousFocus = trigger || (active && active !== document.body ? active : $('#expand-preview'));
+      $('#viewer-layer').classList.add('open');
+      $('#viewer-layer').setAttribute('aria-hidden', 'false');
+      document.body.dataset.viewerOpen = 'true';
+      renderPreview();
+      $('#viewer-code').scrollTop = 0;
+      updateViewerScrollState();
+      setTimeout(() => $('#viewer-code').focus({ preventScroll: true }), 0);
+    }
+
+    function closeViewer(returnFocus = true) {
+      if (!viewerOpen()) return;
+      $('#viewer-layer').classList.remove('open');
+      $('#viewer-layer').setAttribute('aria-hidden', 'true');
+      delete document.body.dataset.viewerOpen;
+      renderInlinePreview();
+      if (returnFocus && viewerPreviousFocus && viewerPreviousFocus.focus) viewerPreviousFocus.focus({ preventScroll: true });
+      viewerPreviousFocus = null;
+    }
+
+    function switchViewerTab(tab) {
+      if (tab === activeTab) return;
+      activeTab = tab;
+      renderPreview();
+      $('#viewer-code').scrollTop = 0;
+      updateViewerScrollState();
+    }
+
+    function fallbackCopy(text) {
+      const area = document.createElement('textarea');
+      area.value = text;
+      area.style.position = 'fixed';
+      area.style.opacity = '0';
+      document.body.appendChild(area);
+      area.select();
+      let copied = false;
+      try { copied = document.execCommand('copy'); } catch (error) { copied = false; }
+      area.remove();
+      return copied;
+    }
+
+    function copyPreview() {
+      const text = previewCache.lines.map(line => line.text).join('\n');
+      // 原型只演示复制入口；成功或浏览器拒绝都给出同一句模拟反馈，避免把剪贴板权限差异当成产品错误。
+      const done = () => notify('已复制完整预览内容（原型模拟）');
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(done).catch(() => { if (fallbackCopy(text)) done(); else done(); });
+      } else if (fallbackCopy(text)) {
+        done();
+      } else {
+        done();
+      }
+    }
+
+    function openModal({ title, kicker = 'CrabHosts', body, buttons, wide = false, destructive = false, onOpen }) {
       closeTray();
       previousFocus = document.activeElement;
+      const modal = $('#modal');
       $('#modal-title').textContent = title;
       $('#modal-kicker').textContent = kicker;
       $('#modal-body').innerHTML = body;
-      $('#modal').classList.toggle('wide', wide);
+      modal.classList.toggle('wide', wide);
+      modal.classList.toggle('destructive', destructive);
+      modal.setAttribute('role', destructive ? 'alertdialog' : 'dialog');
+      if (destructive) modal.setAttribute('aria-describedby', 'modal-body');
+      else modal.removeAttribute('aria-describedby');
       $('#modal-footer').innerHTML = '';
       buttons.forEach(spec => {
         const button = document.createElement('button');
         button.className = `button ${spec.kind || ''}`;
         button.textContent = spec.label;
+        if (spec.action) button.dataset.modalAction = spec.action;
+        button.disabled = Boolean(spec.disabled);
         button.addEventListener('click', spec.onClick);
         $('#modal-footer').appendChild(button);
       });
       $('#modal-layer').classList.add('open');
       document.body.dataset.modalOpen = 'true';
       if (onOpen) onOpen();
-      setTimeout(() => ($('#modal-body input') || $('#modal-close')).focus(), 0);
+      setTimeout(() => {
+        const safeAction = destructive ? modal.querySelector('[data-modal-action="cancel"]') : $('#modal-close');
+        ($('#modal-body input') || safeAction).focus();
+      }, 0);
     }
 
-    function closeModal() {
+    function closeModal(restoreFocus = true) {
       $('#modal-layer').classList.remove('open');
       delete document.body.dataset.modalOpen;
-      if (previousFocus && previousFocus.focus) previousFocus.focus();
+      const target = previousFocus;
+      previousFocus = null;
+      if (restoreFocus && target && target.focus && target.isConnected) target.focus();
+    }
+
+    function trapFocus(container, event) {
+      const focusable = [...container.querySelectorAll('button, input, [tabindex="0"], a[href]')].filter(element => !element.disabled && !element.hidden && element.tabIndex >= 0 && element.offsetParent !== null);
+      if (!focusable.length) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
     }
 
     function openCreate() {
@@ -826,6 +1456,8 @@
             const imported = $('#import-on-create').checked;
             profiles.push({ id: `profile-${Date.now()}`, name, entries: imported ? [{ ip: '127.0.0.1', hosts: 'localhost', comment: '从系统导入（模拟）', enabled: true }] : [] });
             selected = profiles.length - 1;
+            entryQuery = '';
+            locatedEntry = null;
             if (imported) dirtyProfiles.add(current().id);
             closeModal(); setView('profiles'); renderAll(); notify(`已创建 Profile「${name}」`);
           }}
@@ -835,36 +1467,76 @@
     }
 
     function openDeleteProfile() {
-      const name = current().name;
+      const profile = current();
+      const profileId = profile.id;
+      const enabled = profile.entries.filter(entry => entry.enabled).length;
+      const isLast = profiles.length === 1;
+      const isApplied = appliedSnapshot.profileId === profileId;
       openModal({
-        title: `删除 Profile「${name}」？`, kicker: '删除确认',
-        body: '<p>只删除 CrabHosts 保存的配置，不会修改系统 hosts，也不会删除已生成的备份。</p>',
+        title: '删除这个 Profile？', kicker: '永久删除', destructive: true,
+        body: `<div class="delete-object"><span class="delete-object-icon"><svg class="icon"><use href="#i-trash"/></svg></span><div class="delete-object-copy"><span>Profile</span><strong>${esc(profile.name)}</strong><small>${profile.entries.length} 条记录 · ${enabled} 条已启用</small></div></div>
+          <div class="delete-warning"><strong>删除后无法撤销</strong><span>Profile 及其全部记录将从 CrabHosts 配置中永久移除。</span></div>
+          <ul class="assurance-list delete-assurances"><li><svg class="icon icon-sm"><use href="#i-check"/></svg>${isApplied ? '该 Profile 最近已应用；系统 hosts 中已有托管内容也会保持现状' : '不会修改系统 hosts 或其现有托管内容'}</li><li><svg class="icon icon-sm"><use href="#i-check"/></svg>不会删除已经生成的备份</li></ul>
+          ${isLast ? '<p class="delete-note">这是最后一个 Profile；删除后会自动创建空白「default」。</p>' : ''}
+          <div class="modal-field delete-confirm-field"><label for="delete-profile-confirm">请输入 Profile 名称 <strong class="mono">${esc(profile.name)}</strong> 以确认</label><input class="mono" id="delete-profile-confirm" maxlength="64" placeholder="${esc(profile.name)}" autocomplete="off" spellcheck="false" aria-describedby="delete-profile-hint"><div class="form-hint" id="delete-profile-hint">名称需完全一致（区分大小写），确认按钮才会可用。</div></div>`,
         buttons: [
-          { label: '取消', kind: 'quiet', onClick: closeModal },
-          { label: '确认删除', kind: 'danger', onClick: () => {
-            const removedId = current().id;
-            profiles.splice(selected, 1);
-            dirtyProfiles.delete(removedId);
+          { label: '取消', kind: 'quiet', action: 'cancel', onClick: closeModal },
+          { label: '删除 Profile', kind: 'danger', action: 'confirm', disabled: true, onClick: () => {
+            if ($('#delete-profile-confirm').value !== profile.name) return;
+            const profileIndex = profiles.findIndex(item => item.id === profileId);
+            if (profileIndex < 0) { closeModal(); notify('Profile 已变化，未执行删除'); return; }
+            profiles.splice(profileIndex, 1);
+            dirtyProfiles.delete(profileId);
             if (!profiles.length) profiles.push({ id: 'default', name: 'default', entries: [] });
-            selected = Math.min(selected, profiles.length - 1);
-            closeModal(); renderAll(); notify(`已删除 Profile「${name}」；系统 hosts 未修改`);
+            selected = Math.min(profileIndex, profiles.length - 1);
+            entryQuery = '';
+            locatedEntry = null;
+            closeModal(false); setView('profiles'); renderAll();
+            $('#profile-list .profile-item.selected').focus();
+            notify(`已删除 Profile「${profile.name}」；系统 hosts 与备份未修改`);
           }}
-        ]
+        ],
+        onOpen: () => {
+          const input = $('#delete-profile-confirm');
+          const confirm = $('#modal [data-modal-action="confirm"]');
+          const syncConfirm = () => { confirm.disabled = input.value !== profile.name; };
+          input.addEventListener('input', syncConfirm);
+          input.addEventListener('keydown', event => {
+            if (event.key !== 'Enter') return;
+            event.preventDefault();
+            if (!confirm.disabled) confirm.click();
+          });
+          syncConfirm();
+        }
       });
     }
 
     function openDeleteEntry(index) {
-      pendingDelete = index;
-      const entry = current().entries[index];
+      const profile = current();
+      const profileId = profile.id;
+      const entry = profile.entries[index];
+      if (!entry) return;
       openModal({
-        title: '删除这条记录？', kicker: '删除确认',
-        body: `<p>将从当前 Profile 中移除 <span class="mono">${esc(entry.ip)} ${esc(entry.hosts)}</span>。</p><p>不会修改系统 hosts，该操作无法撤销。</p>`,
+        title: '删除这条 Hosts 记录？', kicker: '永久删除', destructive: true,
+        body: `<div class="delete-object"><span class="delete-object-icon"><svg class="icon"><use href="#i-trash"/></svg></span><div class="delete-object-copy"><span>Profile「${esc(profile.name)}」</span><strong class="mono">${esc(entry.ip)} ${esc(entry.hosts)}</strong><small>当前状态：${entry.enabled ? '已启用' : '已禁用'}</small></div></div>
+          <div class="delete-warning"><strong>删除后无法撤销</strong><span>该映射将从当前 Profile 中永久移除。</span></div>
+          <p class="delete-note">仅更新 Profile 并标记未应用修改；系统 hosts 不会立即变化，备份也不会删除。</p>`,
         buttons: [
-          { label: '取消', kind: 'quiet', onClick: closeModal },
-          { label: '确认删除', kind: 'danger', onClick: () => {
-            current().entries.splice(pendingDelete, 1); pendingDelete = -1;
-            dirtyProfiles.add(current().id);
-            closeModal(); renderAll(); notify('已删除记录；系统 hosts 未修改');
+          { label: '取消', kind: 'quiet', action: 'cancel', onClick: closeModal },
+          { label: '删除记录', kind: 'danger', action: 'confirm', onClick: () => {
+            const profileIndex = profiles.findIndex(item => item.id === profileId);
+            const targetProfile = profiles[profileIndex];
+            const entryIndex = targetProfile ? targetProfile.entries.indexOf(entry) : -1;
+            if (entryIndex < 0) { closeModal(); notify('记录已变化，未执行删除'); return; }
+            targetProfile.entries.splice(entryIndex, 1);
+            dirtyProfiles.add(profileId);
+            selected = profileIndex;
+            locatedEntry = null;
+            closeModal(false); renderAll();
+            const deleteButtons = document.querySelectorAll('[data-delete]');
+            const next = deleteButtons[Math.min(entryIndex, deleteButtons.length - 1)];
+            (next || $('#draft-ip')).focus();
+            notify('已删除记录；系统 hosts 与备份未修改');
           }}
         ]
       });
@@ -888,11 +1560,19 @@
       });
     }
 
-    function openSystem() {
+    function openBackupRetentionReduction(previous, next) {
       openModal({
-        title: '系统 hosts', kicker: '只读预览', wide: true,
-        body: `<p style="color:var(--muted);font-size:12px;margin-bottom:10px" class="mono">/etc/hosts · 模拟内容</p><pre class="system-code">##\n# Host Database\n#\n127.0.0.1 localhost\n255.255.255.255 broadcasthost\n::1 localhost\n\n# CrabHosts managed block\n1.1.2.2 ab.com</pre><p style="margin-top:12px;color:var(--muted);font-size:12px">修改系统 hosts 请通过 Profile 预览并确认应用，CrabHosts 不会隐式写入。</p>`,
-        buttons: [{ label: '关闭', kind: 'primary', onClick: closeModal }]
+        title: '降低备份保留上限？', kicker: '备份清理', destructive: true,
+        body: `<div class="confirm-summary"><div class="summary-cell"><span>当前保留上限</span><strong>最近 ${esc(previous)} 份</strong></div><div class="summary-cell"><span>调整后</span><strong>最近 ${esc(next)} 份</strong></div></div>
+          <div class="delete-warning"><strong>旧备份将按新规则清理</strong><span>超出新上限的旧自动备份将被永久删除，且无法恢复。</span></div>
+          <p class="delete-note">不影响手动导出的文件，也不会删除 Profile 或修改系统 hosts。后续自动清理按新上限执行，不重复弹窗。</p>`,
+        buttons: [
+          { label: '取消', kind: 'quiet', action: 'cancel', onClick: closeModal },
+          { label: '确认调整', kind: 'danger', action: 'confirm', onClick: () => {
+            preferences.backupRetention = next;
+            closeModal(); renderAll(); notify(`已调整为保留最近 ${next} 份自动备份（原型模拟）`);
+          }}
+        ]
       });
     }
 
@@ -915,12 +1595,16 @@
     }
 
     function openResetPreferences() {
+      const previousRetention = preferences.backupRetention;
+      const defaultRetention = defaultPreferences.backupRetention;
+      const reducesBackups = Number(defaultRetention) < Number(previousRetention);
       openModal({
-        title: '恢复默认偏好设置？', kicker: '设置',
-        body: '<p>只重置启动、Tray、外观与备份保留数量等应用偏好。</p><p>不会删除 Profile、备份，也不会修改系统 hosts。</p>',
+        title: '恢复默认偏好设置？', kicker: reducesBackups ? '备份清理' : '设置', destructive: reducesBackups,
+        body: `<p>将重置启动、Tray、外观与备份保留数量等应用偏好，不会删除 Profile 或修改系统 hosts。</p>
+          ${reducesBackups ? `<div class="delete-warning"><strong>备份上限将从 ${esc(previousRetention)} 份降为 ${esc(defaultRetention)} 份</strong><span>超出默认上限的旧自动备份将按规则永久清理；手动导出的文件不受影响。</span></div>` : '<p>不会删除已有备份。</p>'}`,
         buttons: [
-          { label: '取消', kind: 'quiet', onClick: closeModal },
-          { label: '恢复默认', kind: 'primary', onClick: () => { Object.assign(preferences, defaultPreferences); closeModal(); renderAll(); notify('已恢复默认偏好（原型模拟）'); } }
+          { label: '取消', kind: 'quiet', action: 'cancel', onClick: closeModal },
+          { label: reducesBackups ? '确认恢复并调整' : '恢复默认', kind: reducesBackups ? 'danger' : 'primary', action: 'confirm', onClick: () => { Object.assign(preferences, defaultPreferences); closeModal(); renderAll(); notify('已恢复默认偏好（原型模拟）'); } }
         ]
       });
     }
@@ -946,7 +1630,14 @@
       updatePreference('closeAction', button.dataset.closeAction);
     }));
     document.querySelectorAll('button[data-density]').forEach(button => button.addEventListener('click', () => updatePreference('density', button.dataset.density)));
-    $('#backup-retention').addEventListener('change', event => updatePreference('backupRetention', event.target.value, `将保留最近 ${event.target.value} 份自动备份（模拟）`));
+    $('#backup-retention').addEventListener('change', event => {
+      const previous = preferences.backupRetention;
+      const next = event.target.value;
+      event.target.value = previous;
+      if (next === previous) return;
+      if (Number(next) < Number(previous)) { openBackupRetentionReduction(previous, next); return; }
+      updatePreference('backupRetention', next, `将保留最近 ${next} 份自动备份（模拟）`);
+    });
     $('#open-backups').addEventListener('click', () => notify('原型演示：未打开真实 Finder 或备份目录'));
     $('#about-safety').addEventListener('click', openSafetyNotes);
     $('#reset-preferences').addEventListener('click', openResetPreferences);
@@ -965,14 +1656,75 @@
       if (!$('#tray-popover').hidden && !$('#tray-popover').contains(event.target) && !$('#tray-button').contains(event.target)) closeTray();
     });
 
+    $('#open-global-search').addEventListener('click', openGlobalSearch);
+    $('#global-search-close').addEventListener('click', () => closeGlobalSearch());
+    $('#global-search-clear').addEventListener('click', () => {
+      globalQuery = '';
+      globalActiveIndex = 0;
+      $('#global-search-input').value = '';
+      renderGlobalSearch();
+      $('#global-search-input').focus();
+    });
+    $('#global-search-input').addEventListener('input', event => {
+      globalQuery = event.target.value;
+      globalActiveIndex = 0;
+      renderGlobalSearch();
+    });
+    $('#global-search-input').addEventListener('keydown', event => {
+      if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+        event.preventDefault();
+        moveGlobalActive(event.key === 'ArrowDown' ? 1 : -1);
+      } else if (event.key === 'Enter' && globalResults.length) {
+        event.preventDefault();
+        activateGlobalResult(globalActiveIndex);
+      }
+    });
+    $('#global-search-layer').addEventListener('mousedown', event => { if (event.target === $('#global-search-layer')) closeGlobalSearch(); });
+    $('#entry-search-input').addEventListener('input', event => {
+      entryQuery = event.target.value;
+      locatedEntry = null;
+      renderEntries();
+    });
+    $('#entry-search-clear').addEventListener('click', () => {
+      entryQuery = '';
+      locatedEntry = null;
+      renderEntries();
+      $('#entry-search-input').focus();
+    });
+    $('#entry-search-input').addEventListener('keydown', event => {
+      if (event.key !== 'Escape') return;
+      event.preventDefault();
+      event.stopPropagation();
+      if (entryQuery) { entryQuery = ''; locatedEntry = null; renderEntries(); }
+      else event.target.blur();
+    });
+
     $('#new-profile').addEventListener('click', openCreate);
     $('#refresh').addEventListener('click', () => notify('已刷新（原型模拟）'));
     $('#delete-profile').addEventListener('click', openDeleteProfile);
     $('#apply-profile').addEventListener('click', openApply);
-    $('#view-system').addEventListener('click', openSystem);
-    $('#preview-top').addEventListener('click', () => { activeTab = 'diff'; renderPreview(); $('#code-panel').scrollIntoView({ behavior: 'smooth', block: 'nearest' }); notify('差异预览已更新（模拟）'); });
+    $('#view-system').addEventListener('click', () => { activeTab = 'system'; renderPreview(); openViewer($('#view-system')); });
+    $('#preview-top').addEventListener('click', () => { activeTab = 'diff'; renderPreview(); $('#preview-body').scrollIntoView({ behavior: 'smooth', block: 'nearest' }); notify('差异预览已更新（模拟）'); });
     $('#tab-diff').addEventListener('click', () => { activeTab = 'diff'; renderPreview(); });
     $('#tab-system').addEventListener('click', () => { activeTab = 'system'; renderPreview(); });
+    $('#expand-preview').addEventListener('click', () => openViewer($('#expand-preview')));
+    $('#expand-preview-foot').addEventListener('click', () => openViewer($('#expand-preview-foot')));
+    $('#viewer-close').addEventListener('click', () => closeViewer());
+    $('#viewer-layer').addEventListener('mousedown', event => { if (event.target === $('#viewer-layer')) closeViewer(); });
+    $('#viewer-tab-diff').addEventListener('click', () => switchViewerTab('diff'));
+    $('#viewer-tab-system').addEventListener('click', () => switchViewerTab('system'));
+    $('#viewer-wrap').addEventListener('click', () => {
+      viewerState.wrap = !viewerState.wrap;
+      applyViewerOptions();
+      updateViewerScrollState();
+    });
+    $('#viewer-gutter').addEventListener('click', () => {
+      viewerState.gutter = !viewerState.gutter;
+      applyViewerOptions();
+      updateViewerScrollState();
+    });
+    $('#viewer-copy').addEventListener('click', copyPreview);
+    $('#viewer-code').addEventListener('scroll', updateViewerScrollState);
     $('#import-system').addEventListener('click', () => {
       const name = current().name;
       if (!current().entries.some(entry => entry.hosts === 'localhost')) {
@@ -991,13 +1743,42 @@
       if (!hosts) { notify('至少填写一个 Hostname'); $('#draft-hostnames').focus(); return; }
       current().entries.push({ ip, hosts: hosts.split(/\s+/).join(' '), comment, enabled: true });
       dirtyProfiles.add(current().id);
+      entryQuery = '';
+      locatedEntry = null;
       event.target.reset(); renderAll(); notify('已添加到 Profile；系统 hosts 未修改'); $('#draft-ip').focus();
     });
     $('#modal-close').addEventListener('click', closeModal);
     $('#modal-layer').addEventListener('mousedown', event => { if (event.target === $('#modal-layer')) closeModal(); });
     document.addEventListener('keydown', event => {
+      if (globalSearchOpen()) {
+        if (event.key === 'Escape') { event.preventDefault(); closeGlobalSearch(); return; }
+        if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') { event.preventDefault(); closeGlobalSearch(); return; }
+        if (event.key === 'Tab') trapFocus($('#global-search'), event);
+        return;
+      }
+      if (viewerOpen()) {
+        if (event.key === 'Escape') { event.preventDefault(); closeViewer(); return; }
+        if (event.metaKey && event.shiftKey && event.key.toLowerCase() === 'f') { event.preventDefault(); closeViewer(); return; }
+        if (event.key === 'Tab') trapFocus($('#viewer'), event);
+        return;
+      }
+      if ($('#modal-layer').classList.contains('open')) {
+        if (event.key === 'Escape') { event.preventDefault(); closeModal(); return; }
+        if (event.key === 'Tab') trapFocus($('#modal'), event);
+        return;
+      }
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
+        event.preventDefault(); openGlobalSearch(); return;
+      }
+      if ((event.metaKey || event.ctrlKey) && !event.shiftKey && event.key.toLowerCase() === 'f') {
+        if (currentView === 'profiles') { event.preventDefault(); $('#entry-search-input').focus(); $('#entry-search-input').select(); }
+        return;
+      }
+      if (event.metaKey && event.shiftKey && event.key.toLowerCase() === 'f') {
+        if (currentView === 'profiles') { event.preventDefault(); openViewer(); }
+        return;
+      }
       if (event.metaKey && event.key === ',') { event.preventDefault(); openSettings(); return; }
-      if (event.key === 'Escape' && $('#modal-layer').classList.contains('open')) { closeModal(); return; }
       if (event.key === 'Escape' && !$('#tray-popover').hidden) { closeTray(true); return; }
       if (['ArrowDown', 'ArrowUp'].includes(event.key) && !$('#tray-popover').hidden) {
         event.preventDefault();
@@ -1006,12 +1787,15 @@
         const index = focusable.indexOf(document.activeElement);
         focusable[(index + direction + focusable.length) % focusable.length].focus();
       }
-      if (event.key === 'Tab' && $('#modal-layer').classList.contains('open')) {
-        const focusable = [...$('#modal').querySelectorAll('button, input, [tabindex="0"]')].filter(el => !el.disabled);
-        const first = focusable[0], last = focusable[focusable.length - 1];
-        if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
-        else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
-      }
+    });
+
+    let previewResizeFrame;
+    window.addEventListener('resize', () => {
+      cancelAnimationFrame(previewResizeFrame);
+      previewResizeFrame = requestAnimationFrame(() => {
+        if (viewerOpen()) updateViewerScrollState();
+        else renderInlinePreview();
+      });
     });
 
     renderAll();

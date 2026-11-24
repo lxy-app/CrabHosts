@@ -2,9 +2,9 @@
 
 ## Project map
 
-- `crates/core`: UI-independent model, validation, profile storage, managed hosts blocks, backups, atomic writes, and privileged-plan verification.
+- `crates/core`: UI-independent model, validation, profile storage, device-local multi-profile activation, managed hosts blocks, backups, atomic writes, and privileged-plan verification.
 - `crates/system-client`: shared Rust client for desktop and CLI, plus the macOS XPC/SMAppService native bridge.
-- `crates/cli`: the `crabhosts` binary and stable JSON automation contract.
+- `crates/cli`: the `crab` binary and stable JSON automation contract.
 - `apps/desktop`: Slint desktop shell, native Tray, settings, and device-local preferences; it depends on the shared client library rather than spawning the CLI.
 - `apps/macos-helper`: signed root launchd executable; production writes use fixed `/etc/hosts` and never read CrabHosts path overrides.
 - `docs/macos-helper.md`: Helper signing, installation, threat model, and verification boundaries.
@@ -31,8 +31,8 @@ Slint UI lives in `apps/desktop/ui/main.slint` and is compiled by `apps/desktop/
 
 - Never use the real `/etc/hosts` or Windows hosts file in tests.
 - Tests and manual demos must set both `CRABHOSTS_HOME` and `CRABHOSTS_HOSTS_FILE` to temporary paths.
-- Profile edits must not implicitly modify system hosts.
-- System writes require a plan and explicit confirmation. Profile apply preserves unmanaged lines; restore intentionally restores a complete backup snapshot. Always create a backup and reject stale plans.
+- Profile edits and activate/deactivate changes must not implicitly modify system hosts.
+- System writes require a plan and explicit confirmation. Applying the full active Profile set preserves unmanaged lines and other active Profiles; restore intentionally restores a complete backup snapshot. Always create a backup and reject stale plans.
 - AI-driven writes must bind approval to the dry-run `plan_id` by passing `--expected-plan <plan-id>` together with `--yes`.
 - Never add implicit `sudo`, AppleScript elevation, shell interpolation, or remote-triggered automatic apply.
 - Do not commit credentials, sync keys, real user hosts backups, or local absolute paths.
@@ -41,7 +41,7 @@ Slint UI lives in `apps/desktop/ui/main.slint` and is compiled by `apps/desktop/
 
 ## Change conventions
 
-- Keep synchronization metadata and stable entry/profile IDs in the core model; device-local apply state must not leak into synced documents.
+- Keep synchronization metadata and stable entry/profile IDs in the core model; device-local apply state must not leak into synced documents. Use `Storage::update_activation` for every activation read-modify-write so desktop and CLI cannot lose concurrent updates.
 - Validate IP addresses, hostnames, names, comments, schema versions, and managed block markers in the core layer.
 - Prefer additive CLI changes. If output fields change, update `skills/crabhosts/references/cli.md` and integration tests in the same change.
 - Do not mark sync, privilege helpers, or platform support complete without an implementation and real verification.

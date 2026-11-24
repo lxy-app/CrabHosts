@@ -26,13 +26,13 @@
 
 ### 仅保存在设备本地
 
-- 当前 active profile。
+- 当前 active Profile 有序 ID 集合（`activation.json`）。
 - 是否自动应用，以及任何定时、启动后或远程触发的应用设置；自动应用默认关闭。
 - 最近生成的 apply/restore plan、系统 hosts 快照、备份 ID 与备份文件。
 - WebDAV 地址及凭据、设备私钥、密钥链引用、同步游标和冲突处理界面状态。
 - UI 偏好和平台权限状态。
 
-同步文档不得包含 active profile 或自动应用标记。设备收到新 revision 后只能更新本地 profile 库；若用户明确选择应用，仍须重新执行 diff/dry-run、展示变更并获得该次明确批准。
+同步文档不得包含 active Profile 集合或自动应用标记。设备收到新 revision 后只能更新本地 profile 库；若用户明确选择应用，仍须重新执行 diff/dry-run、展示变更并获得该次明确批准。
 
 ## 3. 文档模型与本地提交
 
@@ -141,16 +141,16 @@ E2EE 不能防止恶意或失效服务器删除、回滚密文。客户端应检
 
 ## 8. 系统 hosts 与移动端边界
 
-桌面端在同步后如需应用，必须调用 `crabhosts` 的安全流程，而不是直接写系统文件：
+桌面端在同步后如需应用，必须调用 `crab` 的安全流程，而不是直接写系统文件：
 
-1. `system diff <profile>` 查看差异。
-2. `system apply <profile> --dry-run` 生成预览，从该次成功 JSON 的 `data.plan_id` 取得 plan_id。
-3. 向用户展示目标 profile、实际变更和 plan_id，获得该次明确批准。
-4. AI/Harness 使用 `system apply <profile> --yes --expected-plan <plan-id>`；自动备份、原子替换和 managed block 保护由核心层完成，其他系统 hosts 保持不变。
+1. 用 `profile activate/deactivate <name>` 调整本机启用集合，再用无参数 `system diff` 查看完整组合差异。
+2. 用无参数 `system apply --dry-run` 生成预览，从该次成功 JSON 的 `data.plan_id` 取得 plan_id，并核对 `profile_ids/profile_names`。
+3. 向用户展示完整目标组合、实际变更和 plan_id，获得该次明确批准。
+4. AI/Harness 使用无参数 `system apply --yes --expected-plan <plan-id>`；自动备份、原子替换和 managed block 保护由核心层完成，其他系统 hosts 保持不变。
 
 restore 同样先以 `system restore <backup-id> --dry-run` 预览并取得当前 `data.plan_id`，再针对该 backup ID 和 plan_id 获得批准；AI/Harness 使用 `system restore <backup-id> --yes --expected-plan <plan-id>`。restore 在恢复前仍备份当前状态并原子替换，但恢复的是所选备份中的完整 hosts 快照，不限于 managed block。
 
-SystemPlan 绑定 `operation`、`source`、`current`、`proposed`；任何相关变化均使写入退出 5。此时 apply 必须重新 diff/dry-run，restore 必须重新 dry-run，并取得新 plan_id 和新的用户批准。人工交互式 CLI 可以在确认后只使用 `--yes`，AI/Harness 不得省略 `--expected-plan`。不得因同步、远程命令或自动化任务而绕过这些步骤。
+SystemPlan 绑定 `operation`、有序 `profile_ids`、`source`、`current`、`proposed`；启用集合或任何相关内容变化均使写入退出 5。此时 apply 必须重新 diff/dry-run，restore 必须重新 dry-run，并取得新 plan_id 和新的用户批准。人工交互式 CLI 可以在确认后只使用 `--yes`，AI/Harness 不得省略 `--expected-plan`。不得因同步、远程命令或自动化任务而绕过这些步骤。
 
 iOS、iPadOS 和未 root 的 Android 普通应用通常不能修改系统 hosts。移动端即使实现 profile 查看、编辑和同步，也不能承诺桌面端同等 apply/restore 能力；只能在平台明确授权的接口范围内提供能力，并清楚标注“仅同步 profile”。不得要求用户上传真实系统 hosts 来模拟移动端应用。
 

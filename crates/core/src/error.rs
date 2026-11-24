@@ -1,5 +1,23 @@
 use thiserror::Error;
 
+use crate::system::HostConflict;
+
+fn conflict_summary(conflicts: &[HostConflict]) -> String {
+    conflicts
+        .iter()
+        .map(|conflict| {
+            let mappings = conflict
+                .mappings
+                .iter()
+                .map(|mapping| format!("{}={}", mapping.profile_name, mapping.ip))
+                .collect::<Vec<_>>()
+                .join(", ");
+            format!("{} ({mappings})", conflict.hostname)
+        })
+        .collect::<Vec<_>>()
+        .join("; ")
+}
+
 #[derive(Debug, Error)]
 pub enum Error {
     #[error("I/O error: {0}")]
@@ -20,6 +38,8 @@ pub enum Error {
         "the planned content changed or is stale; create a new plan and request approval again"
     )]
     Conflict,
+    #[error("active Profiles have conflicting hostname mappings: {}", conflict_summary(.0))]
+    ProfileConflicts(Vec<HostConflict>),
     #[error("unsafe managed hosts block: {0}")]
     UnsafeBlock(String),
     #[error("privileged helper is unavailable: {0}")]
@@ -45,6 +65,7 @@ impl Error {
             Self::AlreadyExists(_) => "already_exists",
             Self::ConfirmationRequired => "confirmation_required",
             Self::Conflict => "conflict",
+            Self::ProfileConflicts(_) => "profile_conflict",
             Self::UnsafeBlock(_) => "unsafe_managed_block",
             Self::HelperUnavailable(_) => "helper_unavailable",
             Self::HelperProtocol(_) => "helper_protocol",

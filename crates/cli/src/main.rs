@@ -2,7 +2,8 @@ use std::process::ExitCode;
 
 use clap::{Parser, Subcommand};
 use crabhosts_core::{
-    Error, HostEntry, Profile, Result, Storage, parse_hosts, plan_profile, plan_restore,
+    ActivationState, Error, HostEntry, Profile, Result, Storage, parse_hosts, plan_profiles,
+    plan_restore,
 };
 use crabhosts_system_client::SystemClient;
 use serde::Serialize;
@@ -10,7 +11,7 @@ use serde_json::{Value, json};
 
 #[derive(Debug, Parser)]
 #[command(
-    name = "crabhosts",
+    name = "crab",
     version,
     about = "Safe, AI-friendly hosts profile manager"
 )]
@@ -65,6 +66,14 @@ enum ProfileCommand {
         #[arg(long)]
         yes: bool,
     },
+    /// Include a Profile in the device-local composition without modifying system hosts.
+    Activate {
+        name: String,
+    },
+    /// Exclude a Profile from the device-local composition without modifying system hosts.
+    Deactivate {
+        name: String,
+    },
     /// Add an entry or merge hostnames into an existing entry with the same IP.
     Add {
         profile: String,
@@ -93,10 +102,12 @@ enum ProfileCommand {
 #[derive(Debug, Subcommand)]
 enum SystemCommand {
     Diff {
-        profile: String,
+        /// Optionally add this Profile to the candidate composition; omit to use active Profiles.
+        profile: Option<String>,
     },
     Apply {
-        profile: String,
+        /// Optionally add this Profile to the candidate composition; omit to use active Profiles.
+        profile: Option<String>,
         #[arg(long, conflicts_with = "yes")]
         dry_run: bool,
         #[arg(long)]
@@ -167,11 +178,15 @@ fn main() -> ExitCode {
         }
         Err(error) => {
             if json_output {
+                let mut payload = json!({"code": error.code(), "message": error.to_string()});
+                if let Error::ProfileConflicts(conflicts) = &error {
+                    payload["details"] = json!({"conflicts": conflicts});
+                }
                 println!(
                     "{}",
                     serde_json::to_string_pretty(&json!({
                         "ok": false,
-                        "error": {"code": error.code(), "message": error.to_string()}
+                        "error": payload
                     }))
                     .expect("JSON error serialization cannot fail")
                 );
@@ -260,26 +275,32 @@ fn helper_status(storage: &Storage) -> Result<Output> {
 
 fn status(storage: &Storage) -> Result<Output> {
     let document = storage.load()?;
+    let activation = storage.load_activation(&document)?;
     let entry_count = document
         .profiles
         .iter()
         .map(|profile| profile.entries.len())
         .sum::<usize>();
+    let active_profile_count = activation.active_profile_ids.len();
     let data = json!({
         "version": env!("CARGO_PKG_VERSION"),
         "schema_version": document.schema_version,
         "revision": document.revision,
         "profile_count": document.profiles.len(),
         "entry_count": entry_count,
+        "active_profile_ids": activation.active_profile_ids,
+        "active_profile_count": active_profile_count,
         "config_dir": storage.paths().config_dir,
         "database_file": storage.paths().database_file,
+        "activation_file": storage.paths().activation_file,
         "hosts_file": storage.paths().hosts_file,
         "hosts_file_exists": storage.paths().hosts_file.exists(),
     });
     let human = format!(
-        "CrabHosts {}\nProfiles: {}\nEntries: {}\nConfig: {}\nSystem hosts: {}",
+        "CrabHosts {}\nProfiles: {} ({} active)\nEntries: {}\nConfig: {}\nSystem hosts: {}",
         env!("CARGO_PKG_VERSION"),
         document.profiles.len(),
+        active_profile_count,
         entry_count,
         storage.paths().config_dir.display(),
         storage.paths().hosts_file.display()
@@ -291,13 +312,25 @@ fn profile(storage: &Storage, command: ProfileCommand) -> Result<Output> {
     match command {
         ProfileCommand::List => {
             let document = storage.load()?;
+            let activation = storage.load_activation(&document)?;
             let human = if document.profiles.is_empty() {
-                "No profiles. Create one with `crabhosts profile create <name>`.".to_owned()
+                "No profiles. Create one with `crab profile create <name>`.".to_owned()
             } else {
                 document
                     .profiles
                     .iter()
-                    .map(|profile| format!("{}\t{} entries", profile.name, profile.entries.len()))
+                    .map(|profile| {
+                        format!(
+                            "{}\t{}\t{} entries",
+                            if activation.is_active(&profile.id) {
+                                "[active]"
+                            } else {
+                                "[inactive]"
+                            },
+                            profile.name,
+                            profile.entries.len()
+                        )
+                    })
                     .collect::<Vec<_>>()
                     .join("\n")
             };
@@ -335,14 +368,30 @@ fn profile(storage: &Storage, command: ProfileCommand) -> Result<Output> {
                 return Err(Error::ConfirmationRequired);
             }
             let mut document = storage.load()?;
+            let activation = storage.load_activation(&document)?;
+            let profile_id = document.profile(&name)?.id.clone();
+            let was_active = activation.is_active(&profile_id);
             document.remove_profile(&name)?;
             storage.save(&mut document)?;
+            storage
+                .update_activation(&document, |activation| {
+                    activation.set_active(&profile_id, false)
+                })
+                .map_err(|error| {
+                    Error::Invalid(format!(
+                        "Profile {name:?} was deleted, but activation cleanup failed: {error}"
+                    ))
+                })?;
             Ok(Output::new(
                 "profile.delete",
-                json!({"name": name, "revision": document.revision}),
-                format!("Deleted profile {name:?}; the system hosts file was not changed."),
+                json!({"name": name, "was_active": was_active, "revision": document.revision}),
+                format!(
+                    "Deleted profile {name:?}; the system hosts file was not changed. Apply the remaining active Profiles to update it."
+                ),
             ))
         }
+        ProfileCommand::Activate { name } => set_profile_activation(storage, name, true),
+        ProfileCommand::Deactivate { name } => set_profile_activation(storage, name, false),
         ProfileCommand::Add {
             profile,
             ip,
@@ -393,6 +442,34 @@ fn profile(storage: &Storage, command: ProfileCommand) -> Result<Output> {
     }
 }
 
+fn set_profile_activation(storage: &Storage, name: String, active: bool) -> Result<Output> {
+    let document = storage.load()?;
+    let profile_id = document.profile(&name)?.id.clone();
+    let (activation, changed) = storage.update_activation(&document, |activation| {
+        activation.set_active(&profile_id, active)
+    })?;
+    Ok(Output::new(
+        if active {
+            "profile.activate"
+        } else {
+            "profile.deactivate"
+        },
+        json!({
+            "profile": name,
+            "profile_id": profile_id,
+            "active": active,
+            "changed": changed,
+            "active_profile_ids": activation.active_profile_ids,
+            "activation_revision": activation.revision,
+        }),
+        format!(
+            "{} Profile {:?}; system hosts was not changed. Run `crab system diff` to preview the active composition.",
+            if active { "Activated" } else { "Deactivated" },
+            name
+        ),
+    ))
+}
+
 fn set_enabled(
     storage: &Storage,
     profile: String,
@@ -416,11 +493,25 @@ fn set_enabled(
     ))
 }
 
+fn composition(
+    storage: &Storage,
+    additional_profile: Option<&str>,
+) -> Result<(crabhosts_core::Document, ActivationState, bool)> {
+    let document = storage.load()?;
+    let mut activation = storage.load_activation(&document)?;
+    let mut additional_changed = false;
+    if let Some(name) = additional_profile {
+        let profile_id = document.profile(name)?.id.clone();
+        additional_changed = activation.set_active(&profile_id, true)?;
+    }
+    Ok((document, activation, additional_changed))
+}
+
 fn system(storage: &Storage, command: SystemCommand) -> Result<Output> {
     match command {
         SystemCommand::Diff { profile } => {
-            let document = storage.load()?;
-            let plan = plan_profile(storage, &document, &profile)?;
+            let (document, activation, _) = composition(storage, profile.as_deref())?;
+            let plan = plan_profiles(storage, &document, &activation.active_profile_ids)?;
             let human = plan_human(&plan.diff, plan.changed);
             Ok(Output::new("system.diff", plan, human))
         }
@@ -431,23 +522,59 @@ fn system(storage: &Storage, command: SystemCommand) -> Result<Output> {
             expected_plan,
         } => {
             require_confirmation(dry_run, yes)?;
-            let document = storage.load()?;
-            let plan = plan_profile(storage, &document, &profile)?;
+            let (document, activation, additional_changed) =
+                composition(storage, profile.as_deref())?;
+            let plan = plan_profiles(storage, &document, &activation.active_profile_ids)?;
             verify_expected_plan(&plan.plan_id, expected_plan.as_deref())?;
             if dry_run {
                 let human = plan_human(&plan.diff, plan.changed);
                 Ok(Output::new("system.apply.dry_run", plan, human))
             } else {
                 let report = SystemClient::new().apply_plan(storage, &plan)?;
-                let human = if report.changed {
+                let mut human = if report.changed {
                     format!(
-                        "Applied profile {profile:?}. Backup: {}",
+                        "Applied active Profiles [{}]. Backup: {}",
+                        report.profile_names.join(", "),
                         report.backup_id.as_deref().unwrap_or("none")
                     )
                 } else {
                     "No changes; no backup was needed.".to_owned()
                 };
-                Ok(Output::new("system.apply", report, human))
+                let mut output = Output::new("system.apply", report, human.clone());
+                let mut activation_persisted = true;
+                let mut actual_active_ids = Some(activation.active_profile_ids.clone());
+                if profile.is_some() && additional_changed {
+                    let profile_id = document
+                        .profile(profile.as_deref().expect("legacy Profile is present"))?
+                        .id
+                        .clone();
+                    match storage.update_activation(&document, |activation| {
+                        activation.set_active(&profile_id, true)
+                    }) {
+                        Ok((persisted, _)) => {
+                            output.data["activation_revision"] = json!(persisted.revision);
+                            actual_active_ids = Some(persisted.active_profile_ids);
+                        }
+                        Err(error) => {
+                            activation_persisted = false;
+                            actual_active_ids = storage
+                                .load_activation(&document)
+                                .ok()
+                                .map(|activation| activation.active_profile_ids);
+                            let warning = format!(
+                                "System hosts was applied, but saving the added active Profile failed: {error}"
+                            );
+                            output.data["activation_warning"] = json!(warning);
+                            human.push_str(&format!("\nWarning: {warning}"));
+                            output.human = human;
+                        }
+                    }
+                }
+                output.data["activation_persisted"] = json!(activation_persisted);
+                output.data["active_profile_ids"] = actual_active_ids
+                    .map(|ids| json!(ids))
+                    .unwrap_or(serde_json::Value::Null);
+                Ok(output)
             }
         }
         SystemCommand::Restore {
@@ -525,6 +652,7 @@ fn exit_code(error: &Error) -> u8 {
         Error::Invalid(_)
         | Error::NotFound(_)
         | Error::AlreadyExists(_)
+        | Error::ProfileConflicts(_)
         | Error::UnsafeBlock(_) => 2,
         _ => 1,
     }

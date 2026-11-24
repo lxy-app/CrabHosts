@@ -131,8 +131,10 @@ impl Profile {
     }
 
     pub fn validate(&self) -> Result<()> {
-        if self.id.is_empty() {
-            return Err(Error::Invalid("profile id cannot be empty".into()));
+        if self.id.is_empty() || self.id.len() > 128 || self.id.chars().any(char::is_control) {
+            return Err(Error::Invalid(
+                "profile id must contain 1 to 128 characters without control characters".into(),
+            ));
         }
         if self.name.is_empty() || self.name.chars().count() > 64 {
             return Err(Error::Invalid(
@@ -354,7 +356,7 @@ pub fn validate_hostname(hostname: &str) -> Result<()> {
     normalize_hostname(hostname).map(|_| ())
 }
 
-fn normalize_hostname(hostname: &str) -> Result<String> {
+pub(crate) fn normalize_hostname(hostname: &str) -> Result<String> {
     let hostname = hostname.trim().trim_end_matches('.').to_lowercase();
     if hostname.is_empty() || hostname.len() > 253 {
         return Err(Error::Invalid(format!("invalid hostname {hostname:?}")));

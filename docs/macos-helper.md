@@ -7,7 +7,7 @@ CrabHosts 在 macOS 13+ 使用长期注册的 launchd root Helper 修改系统 h
 ```text
 Slint 桌面端 ─┐
               ├─→ crabhosts-system-client（Rust 库）─→ XPC ─→ root Helper
-crabhosts CLI ─┘                                             └─→ crabhosts-core
+crab CLI ─┘                                                  └─→ crabhosts-core
 ```
 
 桌面端不启动 CLI 子进程。AI Harness 调用 CLI，CLI 与桌面端直接依赖同一个 Rust 客户端库。Helper 不连接网络，不接受 shell 命令、目标路径、Profile 数据库路径或授权凭据。
@@ -26,11 +26,11 @@ XPC 双向设置 peer code-signing requirement。Helper 还对每条请求调用
 2. 桌面端要求显式确认；AI Harness 正式写入必须同时传 `--yes` 与当前 dry-run 的 `--expected-plan`。
 3. 用户态再次核对当前内容并创建备份。备份失败则不联系 Helper。
 4. Helper 读取固定的 `/etc/hosts`，忽略调用方的 `CRABHOSTS_HOME` 和 `CRABHOSTS_HOSTS_FILE`。
-5. Helper 重算计划哈希；Profile 应用还会验证只有 managed block 发生变化，restore 则明确恢复完整快照。
+5. Helper 重算绑定有序 `profile_ids` 的计划哈希；`apply_profiles` 还会验证只有 managed block 发生变化，并核对区块内每个 Profile 名称/ID 分节与计划身份及顺序完全一致。空组合只能删除托管区块；restore 则明确恢复完整快照。
 6. 生产写入要求目标已存在且为普通文件，以 `O_NOFOLLOW` 打开核验，在同目录写临时文件，保留属主和权限，原子替换并复读验证。
 7. 用户态把先前创建的 backup ID 附加到 `ApplyReport`。
 
-XPC 请求有版本、字段和大小限制。Helper 在串行队列处理写入。连接中断或超时时结果可能不确定，调用方必须重新读取状态，不能盲目重试。
+XPC 请求有版本、字段和大小限制。多 Profile 组合使用协议 2；旧协议 1 Helper 必须更新，不能继续接收新的组合计划。Helper 在串行队列处理写入。连接中断或超时时结果可能不确定，调用方必须重新读取状态，不能盲目重试。
 
 ## 打包
 
@@ -44,36 +44,51 @@ export CRABHOSTS_TEAM_ID="TEAMID"
 
 ```text
 Contents/MacOS/CrabHosts
-Contents/SharedSupport/crabhosts
+Contents/SharedSupport/crab
 Contents/Library/LaunchServices/dev.crabhosts.hosts-helper
 Contents/Library/LaunchDaemons/dev.crabhosts.hosts-helper.plist
 ```
 
 脚本逐个签名嵌套可执行文件和外层 app，并执行 `codesign --verify` 与 `plutil -lint`。不使用 `codesign --deep`，不接受无法通过 Helper 身份校验的 ad-hoc 签名。正式发布需要 Developer ID Application、hardened runtime、secure timestamp 和 Apple 公证；Apple Development 签名仅用于本机开发验收。
 
+生成可分发的公证 DMG：
+
+```bash
+export CRABHOSTS_CODESIGN_IDENTITY="Developer ID Application: … (TEAMID)"
+export CRABHOSTS_TEAM_ID="TEAMID"
+xcrun notarytool store-credentials CrabHosts --team-id "$CRABHOSTS_TEAM_ID"  # 首次
+./scripts/package-dmg.sh
+```
+
+该脚本复用 `package-macos.sh` 构建并签名 `.app`，先公证 `.app` 并 `stapler` 附加票据，再用含 `/Applications` 快捷方式的暂存目录生成 UDZO DMG，签名后再次提交公证并附加票据。最后用 `spctl`、`codesign --verify`、`stapler validate` 复验 DMG 和其中的 `.app`，并输出 SHA-256。公证凭证默认读取 `CrabHosts`，可用 `CRABHOSTS_NOTARY_PROFILE` 覆盖；未配置凭证或任一校验失败时脚本以非零状态退出。DMG 使用 Developer ID Application 签名即可；`.pkg` 则还需要同一 Team ID 的 Developer ID Installer 证书。
+
 ## 安装、批准与更新
 
 - 打开应用不会自动注册 Helper。
 - 用户在侧栏显式选择安装、更新或修复后才调用 `SMAppService`。
 - `register()` 成功不代表 launchd 立即可用；若状态为 `requiresApproval`，需要在“系统设置 → 通用 → 登录项与扩展”中允许。
-- Helper 更新要求重新注册。不要在 `requiresApproval` 状态循环注销/注册。
+- Helper 更新要求重新注册。已有 `Enabled` 旧版本时，必须使用 `unregisterWithCompletionHandler` 等待旧服务注销完成后再注册；同步注销后立即重注册可能因 ServiceManagement 时序竞争导致首次更新出现 `Operation not permitted`。不得用固定 sleep 代替 completion。
+- 注册后 XPC 尚未就绪时，桌面端在工作线程做有界重查并显示“已注册，等待服务就绪”；此状态和 `requiresApproval` 的“重新检查”不会再次注销/注册。不要在 `requiresApproval` 状态循环注销/注册。
+- 已注册 Helper 若明确返回 `helper_protocol`（例如旧协议 1 收到协议 2 请求），说明服务已可通信但版本不兼容；桌面端必须显示“安装/更新”入口，不能误判为 XPC 等待状态而让“重新检查”形成死循环。
 - 生命周期操作只存在于签名桌面应用包中；独立 CLI 只负责状态检查和日常写入。
 
 CLI 只读预检：
 
 ```bash
-crabhosts --json helper status
+crab --json helper status
 ```
 
 该命令不会安装 Helper 或修改 hosts。Helper 不可用、版本不匹配或签名验证失败时，正式写入失败且不直接回退写 `/etc/hosts`。
 
 ## AI Harness
 
-正式命令保持不变：
+正式命令为：
 
 ```bash
-crabhosts --json system apply <profile> --yes --expected-plan <plan-id>
-crabhosts --json system restore <backup-id> --yes --expected-plan <plan-id>
+crab --json profile activate <profile>  # 对每个目标执行；只改本机启用集合
+crab --json system apply --dry-run
+crab --json system apply --yes --expected-plan <plan-id>
+crab --json system restore <backup-id> --yes --expected-plan <plan-id>
 ```
 
 AI 不直接连接 XPC，不调用安装接口，不添加 `sudo`，也不把 profile 编辑或同步转换为系统应用。
@@ -100,6 +115,14 @@ AI 不直接连接 XPC，不调用安装接口，不添加 `sudo`，也不把 pr
 
 2026-11-10，包含当前桌面端实装的 arm64 包已使用 Developer ID Application、hardened runtime 和 secure timestamp 完成签名，Apple 公证返回 `Accepted`，并已附加公证票据。Gatekeeper 返回 `accepted` / `Notarized Developer ID`；最终 ZIP 解压后再次通过签名、票据和 Gatekeeper 复验。该结果只覆盖当时的 arm64 分发快照；后续代码变更必须重新打包和公证，也不替代以下平台与生命周期验收。
 
+2026-11-11，使用 `scripts/package-dmg.sh` 生成 `CrabHosts-0.1.0-macos-arm64.dmg`。`.app` 与 DMG 分别通过 Apple 公证（`Accepted`）并附加票据；DMG 内外两层 `spctl` 均返回 `accepted` / `Notarized Developer ID`，`stapler validate` 通过，DMG 内 CLI 输出 `crabhosts 0.1.0`。该 DMG 同样只覆盖当时的 arm64 分发快照。
+
+2026-11-14，版本提升为 `0.1.1`（`CFBundleVersion` 2），生成 `CrabHosts-0.1.1-macos-arm64.dmg`。`.app` 公证提交 `771de595-2389-4d80-9e07-eadd195e5f50`、DMG 公证提交 `63b09d7a-6c18-4736-b024-624d7479b6d9` 均为 `Accepted`；DMG 与内部 `.app` 通过 Gatekeeper（`accepted` / `Notarized Developer ID`）和 `stapler validate`，内部 CLI 输出 `crabhosts 0.1.1`。DMG SHA-256 为 `b50dc03d7d78a372e5a32ee67e6fa00f95bfd71461e7659c34c11a9477389227`。该快照仍只覆盖 arm64，macOS 13 实机、撤销、重启与 Helper 更新验收边界不变。
+
+2026-11-20，版本提升为 `0.1.2`（`CFBundleVersion` 3），生成 `CrabHosts-0.1.2-macos-arm64.dmg`（9.5 MB）。`.app` 公证提交 `88ffe3e6-4b32-40e1-a516-dc09dc891f6c`、DMG 公证提交 `3444910a-473f-469e-8929-6ad448412348` 均为 `Accepted`；DMG 与内部 `.app` 通过 Gatekeeper（`accepted` / `Notarized Developer ID`）和 `stapler validate`，内部 CLI 输出 `crab 0.1.2`。主程序、CLI、Helper 均为 arm64、hardened runtime 和安全时间戳。DMG SHA-256 为 `bda1e356422562785bd4dae5128e57574fbaadd879b3e5ab6e5639b607507a44`。发布前格式、严格 Clippy、全 workspace 测试及 23 项桌面 UI 回归通过；未安装或更新 Helper，未修改系统 hosts。
+
 尚未覆盖：macOS 13 实机/VM、System Settings 撤销、重启持久性、Helper 更新和 x86_64/universal 包。2026-11-08 的开发签名包不作为正式发布验收。
+
+2026-11-20，协议 2 多 Profile 组合、身份分节防篡改、空组合删除及完整快照 restore 已通过核心 fixture 和共享客户端测试；直接后端同时复用带最终内容/文件身份复核的 writer。本轮未安装或更新真实 Helper，未写真实 `/etc/hosts`，上述历史签名与公证结果不覆盖协议 2 变更。协议 2 的签名包、Helper 更新和桌面/CLI 真实端到端仍待单独验收。
 
 参考：[SMAppService](https://developer.apple.com/documentation/servicemanagement/smappservice)、[SecCodeCreateWithXPCMessage](https://developer.apple.com/documentation/security/seccodecreatewithxpcmessage(_:_:_:))、Apple [TN3127](https://developer.apple.com/documentation/technotes/tn3127-inside-code-signing-requirements)。
