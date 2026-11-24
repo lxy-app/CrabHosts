@@ -9,6 +9,7 @@ CrabHosts 是一个以 **Rust + Slint** 构建的 hosts 管理工具，目标是
 - **AI 原生**：稳定子命令、`--json` 输出、非交互执行、明确退出码。
 - **默认安全**：预览不写文件；真实系统修改必须显式 `--yes`；不隐式提权。
 - **最小影响**：只替换 CrabHosts 托管区块，保留系统 hosts 中的其他内容。
+- **组合启用**：当前编辑对象与启用状态分离；多个 Profile 可按稳定 ID 组合应用，关闭其中一个不会清掉其他 Profile。
 - **可恢复**：写入前自动备份并记录 SHA-256；恢复前也会备份当前状态。
 - **共享核心**：CLI 与 Slint 桌面端使用同一个 `crabhosts-core`。
 
@@ -17,7 +18,7 @@ CrabHosts 是一个以 **Rust + Slint** 构建的 hosts 管理工具，目标是
 ```text
 crates/core/          hosts 数据模型、校验、存储、托管区块、备份与恢复
 crates/system-client/ 桌面端与 CLI 共用的系统客户端及 macOS XPC 桥接
-crates/cli/           crabhosts 命令行程序
+crates/cli/           crab 命令行程序（Cargo 包名仍为 crabhosts-cli）
 apps/desktop/         Slint 桌面端及 .slint UI
 apps/macos-helper/    固定操作系统 hosts 的签名 launchd root Helper
 skills/crabhosts/     Harness 无关的 Agent Skill 与 CLI 契约
@@ -43,8 +44,9 @@ cargo run -p crabhosts-desktop
 
 - 新建 Profile，可勾选“导入当前系统 hosts 中的记录”，把现有映射保存为初始内容。
 - 添加、启用/禁用、删除记录；所有编辑只写入 Profile 数据库，不自动修改系统 hosts。
+- 当前编辑与 Profile 启用相互独立；可同时启用多个 Profile，开关只保存本机 `activation.json`，应用时合成全部启用记录。
 - 查看系统 hosts 原文（只读），或把系统 hosts 中的记录合并导入当前 Profile。
-- 预览差异，确认后再应用；删除 Profile 只删除配置，不影响系统 hosts 与已有备份。
+- 预览组合差异，确认后再应用；删除 Profile 只删除配置和本机启用引用，不影响系统 hosts 与已有备份。
 - 界面支持在「设置 → 外观」切换浅色和深色主题，包含 Profile、记录表格、添加表单、只读预览与确认弹层。
 - macOS 菜单栏 Tray 支持切换编辑 Profile、打开主窗口、进入设置与退出；Tray 的“应用…”只打开主窗口确认层，不直接写系统 hosts。
 - 设置页包含通用、外观、备份与安全、关于，可从侧栏、Tray 或 `⌘,` 进入。偏好原子保存到设备本地 `preferences.json`，不进入 Profile 同步文档。
@@ -62,31 +64,40 @@ Tray、设置、本地偏好和原生验收边界详见 [桌面端 Tray 与设�
 
 ### CLI 快速开始
 
+命令名为 `crab`。签名应用包的「设置 → 通用 → crab 命令行工具」提供“安装到 PATH”操作：它在 `~/.local/bin` 创建指向内置 CLI 的 `crab` 链接，并通过 `~/.zprofile` 中的独立配置块确保 macOS 默认 zsh 的新终端可找到该目录。操作不需要 `sudo`，不会覆盖已有的同名普通文件或其他命令链接。链接指向当前应用位置，建议先将 `CrabHosts.app` 固定到 `/Applications`；安装后打开新终端运行 `crab --help`。
+
 ```bash
 # 查看状态和已有 Profile（只读）
-crabhosts status
-crabhosts --json profile list
+crab status
+crab --json profile list
 
 # 创建 Profile；--from-system 可导入当前有效映射
-crabhosts profile create dev
-crabhosts profile add dev 127.0.0.1 api.local admin.local --comment "local dev"
-crabhosts profile disable dev admin.local
-crabhosts profile show dev
+crab profile create dev
+crab profile add dev 127.0.0.1 api.local admin.local --comment "local dev"
+crab profile disable dev admin.local
+crab profile show dev
 
-# 预览系统差异；以下两条命令都不会写系统文件
-crabhosts system diff dev
-crabhosts system apply dev --dry-run
+# 启用可组合；激活只写本机 activation.json，不写系统 hosts
+crab profile activate dev
+# crab profile activate work
+
+# 预览整个启用组合；以下两条命令都不会写系统文件
+crab system diff
+crab system apply --dry-run
 
 # 用户确认后才执行；写入前自动备份
-crabhosts system apply dev --yes
+crab system apply --yes
+
+# 停用某个 Profile 后重新预览并应用，其他启用 Profile 保持不变
+crab profile deactivate dev
 
 # 查看备份，预览并执行恢复
-crabhosts backup list
-crabhosts system restore <backup-id> --dry-run
-crabhosts system restore <backup-id> --yes
+crab backup list
+crab system restore <backup-id> --dry-run
+crab system restore <backup-id> --yes
 ```
 
-`profile` 子命令只修改 Profile 数据库，不修改系统 hosts。macOS 正式写入由 CLI 自动连接已安装的 Helper，不需要 `sudo`。可先运行 `crabhosts --json helper status` 做只读预检；Helper 不可用或版本不匹配时不会回退到直接写系统文件。
+`profile` 的内容编辑子命令只修改 Profile 数据库，`activate/deactivate` 只修改本机启用集合，都不会修改系统 hosts。旧 `system diff/apply <profile>` 形式保留为“把该 Profile 加入候选组合”的兼容入口，不再独占清除其他启用项；新自动化应使用显式 `profile activate` 加无参数 `system diff/apply`。macOS 正式写入由 CLI 自动连接已安装的 Helper，不需要 `sudo`。可先运行 `crab --json helper status` 做只读预检；Helper 不可用或版本不匹配时不会回退到直接写系统文件。
 
 ### macOS 签名打包与 Helper
 
@@ -99,7 +110,18 @@ export CRABHOSTS_TEAM_ID="TEAMID"
 open dist/CrabHosts.app
 ```
 
-脚本只在仓库 `dist/` 生成产物，不自动安装应用或注册 Helper。首次在桌面端点击 Helper 安装/更新后，按 macOS 提示完成管理员批准；如系统要求，还需在“系统设置 → 通用 → 登录项与扩展”中允许。正式发布包含 LaunchDaemon 的应用还需完成 Apple 公证。普通 `cargo run` 可用于开发和 fixture 测试，但不具备正式 Helper 的签名身份。
+脚本只在仓库 `dist/` 生成产物，不自动安装应用或注册 Helper。首次在桌面端点击 Helper 安装/更新后，按 macOS 提示完成管理员批准；如系统要求，还需在“系统设置 → 通用 → 登录项与扩展”中允许。普通 `cargo run` 可用于开发和 fixture 测试，但不具备正式 Helper 的签名身份。
+
+分发用的公证安装包使用 `scripts/package-dmg.sh`。脚本先公证 `.app` 并附加票据，再制作、签名、公证并附加票据到 DMG，最后复验签名、Gatekeeper 和 SHA-256：
+
+```bash
+export CRABHOSTS_CODESIGN_IDENTITY="Developer ID Application: … (TEAMID)"
+export CRABHOSTS_TEAM_ID="TEAMID"
+xcrun notarytool store-credentials CrabHosts --team-id "$CRABHOSTS_TEAM_ID"  # 首次
+./scripts/package-dmg.sh
+```
+
+产物为 `dist/CrabHosts-<version>-macos-arm64.dmg`，内含 `.app` 和指向 `/Applications` 的快捷方式。公证凭证默认读取 `CrabHosts` 配置，可用 `CRABHOSTS_NOTARY_PROFILE` 覆盖。任一环节失败脚本都会中止。
 
 ### 安全的本地演示
 

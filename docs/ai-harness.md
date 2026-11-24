@@ -1,6 +1,6 @@
 # CrabHosts AI Harness 接入指南
 
-CrabHosts 的 AI Harness 原生支持由三部分组成：稳定的 `crabhosts` CLI、全局 `--json` 自动化输出，以及随仓库维护的 canonical Agent Skill。它不依赖某个 Harness 的私有接口，也不要求 AI 直接修改系统 hosts。
+CrabHosts 的 AI Harness 原生支持由三部分组成：稳定的 `crab` CLI、全局 `--json` 自动化输出，以及随仓库维护的 canonical Agent Skill。它不依赖某个 Harness 的私有接口，也不要求 AI 直接修改系统 hosts。
 
 ## 1. Canonical Skill
 
@@ -27,7 +27,7 @@ CrabHosts 的 AI Harness 原生支持由三部分组成：稳定的 `crabhosts` 
 
 ```markdown
 执行 CrabHosts 任务前，读取 skills/crabhosts/SKILL.md，
-并按 skills/crabhosts/references/cli.md 使用 crabhosts CLI。
+并按 skills/crabhosts/references/cli.md 使用 crab CLI。
 ```
 
 本文不定义 DSH 或 WorkBuddy 的专用安装路径，也不假设它们会自动发现仓库里的 Skill。应以实际版本的通用导入说明为准。
@@ -39,10 +39,11 @@ CrabHosts 的 AI Harness 原生支持由三部分组成：稳定的 `crabhosts` 
 自动执行时统一把全局 `--json` 放在子命令前，例如：
 
 ```bash
-crabhosts --json status
-crabhosts --json profile list
-crabhosts --json profile show <name>
-crabhosts --json system diff <profile>
+crab --json status
+crab --json profile list
+crab --json profile show <name>
+crab --json profile activate <name>
+crab --json system diff
 ```
 
 成功输出 envelope：
@@ -69,33 +70,35 @@ crabhosts --json system diff <profile>
 
 其他非零退出码按失败处理，并保留结构化错误供诊断。
 
-`system diff`、`system apply --dry-run` 和 `system restore --dry-run` 的成功 JSON 均在 `data.plan_id` 返回 SystemPlan 标识。AI/Harness 正式写入必须取**当前 dry-run** 的 `plan_id`，不能用历史预览、其他 operation 或其他 source 的标识代替。
+`system diff`、`system apply --dry-run` 和 `system restore --dry-run` 的成功 JSON 均在 `data.plan_id` 返回 SystemPlan 标识。apply 数据同时包含稳定 `profile_ids` 和用于展示的 `profile_names`。AI/Harness 正式写入必须取**当前 dry-run** 的 `plan_id`，不能用历史预览、其他 operation 或其他 Profile 组合的标识代替。同名不同 IP 的启用记录返回 `error.code = "profile_conflict"`，并在 `error.details.conflicts` 给出来源，禁止静默按顺序覆盖。
 
-macOS 可先执行 `crabhosts --json helper status` 做只读预检；其成功数据包含 `mode`、`ready` 和 Helper 版本/协议信息。fixture 模式返回 `mode = "direct"`。该命令不安装或更新 Helper。
+macOS 可先执行 `crab --json helper status` 做只读预检；其成功数据包含 `mode`、`ready` 和 Helper 版本/协议信息。fixture 模式返回 `mode = "direct"`。该命令不安装或更新 Helper。
 
 ## 4. 强制系统修改流程
 
-只读查看和 profile 编辑不等于系统应用。`profile create/add/remove/enable/disable` 只修改 profile；`profile delete` 是删除操作，必须先展示目标并获得明确批准后才使用 `--yes`。
+只读查看、profile 编辑和启用状态修改都不等于系统应用。`profile create/add/remove/enable/disable` 只修改 profile；`profile activate/deactivate` 只修改本机 `activation.json` 中的启用 ID 集合，不写系统 hosts；`profile delete` 是删除操作，必须先展示目标并获得明确批准后才使用 `--yes`。
 
-### 应用 profile
+### 应用 Profile 组合
 
-1. 用 `status`、`profile show <profile>` 确认当前状态和目标内容。
-2. 执行 `crabhosts --json system diff <profile>`。
-3. 执行 `crabhosts --json system apply <profile> --dry-run`。
-4. 从该次 dry-run 的成功 JSON 中读取 `data.plan_id`。
-5. 将目标 profile、diff 和 dry-run 结果展示给用户，获得**针对这一次操作和 plan_id** 的明确批准。
-6. 仅在批准后执行 `crabhosts --json system apply <profile> --yes --expected-plan <plan-id>`。
+1. 用 `status`、`profile list`、`profile show <profile>` 确认当前状态和目标内容。
+2. 用 `crab --json profile activate <profile>` 启用每个目标 Profile；需要移除某个贡献时使用 `profile deactivate <profile>`。这些命令本身不写系统 hosts。
+3. 执行 `crab --json system diff`，再执行 `crab --json system apply --dry-run`，两者都针对完整启用集合。
+4. 从该次 dry-run 的成功 JSON 中读取 `data.plan_id`、`profile_ids`、`profile_names` 和 diff。
+5. 将完整目标组合、diff 和 dry-run 结果展示给用户，获得**针对这一次操作和 plan_id** 的明确批准。
+6. 仅在批准后执行 `crab --json system apply --yes --expected-plan <plan-id>`。
 7. 读取状态和结果，确认是否成功；失败时保留错误，不重复盲写。
+
+旧 `system diff/apply <profile>` 是把该 Profile 加入当前候选组合的兼容形式，不再表示“只启用它”。新自动化应使用上述显式 activate/deactivate 流程，避免误解目标集合。
 
 ### 恢复备份
 
 1. 用 `backup list` 让用户确认准确的 `<backup-id>`。
-2. 执行 `crabhosts --json system restore <backup-id> --dry-run`，展示该恢复将产生的变化。
+2. 执行 `crab --json system restore <backup-id> --dry-run`，展示该恢复将产生的变化。
 3. 从该次 dry-run 的成功 JSON 中读取 `data.plan_id`。
 4. 获得针对该 backup ID、当前预览和 plan_id 的明确批准。
-5. 仅在批准后执行 `crabhosts --json system restore <backup-id> --yes --expected-plan <plan-id>`。
+5. 仅在批准后执行 `crab --json system restore <backup-id> --yes --expected-plan <plan-id>`。
 
-不得把 backup ID 当作 `system diff <profile>` 的参数。SystemPlan 绑定 `operation`、`source`、`current`、`proposed`：分别对应 apply/restore 操作、来源 profile 或 backup、当前系统 hosts 状态和拟写入内容。任何相关变化均使 plan 失效并退出 5；AI/Harness 必须重新 dry-run 取得新 `plan_id`，重新展示变更并获得批准。
+不得把 backup ID 当作 `system diff` 的 Profile 参数。SystemPlan 绑定 `operation`、稳定 `profile_ids`、`source`、`current`、`proposed`：分别对应 apply/restore 操作、启用 Profile 集合或 backup、来源摘要、当前系统 hosts 状态和拟写入内容。启用集合、启用 Profile 内容或系统 hosts 的任何相关变化均使 plan 失效并退出 5；AI/Harness 必须重新 dry-run 取得新 `plan_id`，重新展示变更并获得批准。空启用集合是合法计划，其效果是只移除 CrabHosts 托管区块。
 
 人工交互式 CLI 可以在确认后只使用 `--yes`；AI/Harness 正式写入必须将 `--expected-plan <plan-id>` 与 `--yes` 同用，不得省略。
 
@@ -119,4 +122,4 @@ export CRABHOSTS_HOSTS_FILE="$tmpdir/hosts"
 
 ## 6. 与同步功能的边界
 
-同步设计见 [`docs/sync.md`](sync.md)，其中网络能力是分阶段建议，不应描述为已实现。即使未来接入 WebDAV、relay 或 P2P，AI 也只能同步 profile 文档；active profile 与自动应用保持设备本地，同步完成不得触发系统应用。
+同步设计见 [`docs/sync.md`](sync.md)，其中网络能力是分阶段建议，不应描述为已实现。即使未来接入 WebDAV、relay 或 P2P，AI 也只能同步 profile 文档；active Profile 集合与自动应用保持设备本地，同步完成不得触发系统应用。
