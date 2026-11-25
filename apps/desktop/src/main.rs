@@ -638,6 +638,64 @@ fn wire(window: &MainWindow, state: Rc<RefCell<UiState>>) {
     {
         let state = Rc::clone(&state);
         let weak = window.as_weak();
+        window.on_edit_entry(move |id, ip, hostnames, comment| {
+            let Some(window) = weak.upgrade() else {
+                return;
+            };
+            if !window.get_show_edit_entry()
+                || window.get_edit_entry_id() != id
+                || window.get_edit_profile_name() != window.get_selected_name()
+            {
+                window.set_edit_entry_error("编辑对象已变化，请取消并重新打开。".into());
+                return;
+            }
+            let outcome = (|| -> crabhosts_core::Result<Document> {
+                let state = state.borrow();
+                let profile_name = window.get_edit_profile_name();
+                let original = state
+                    .document
+                    .profile(profile_name.as_str())?
+                    .entries
+                    .iter()
+                    .find(|entry| entry.id == id.as_str())
+                    .ok_or(crabhosts_core::Error::Conflict)?;
+                let mut updated = draft_entry(&ip, &hostnames, &comment)?;
+                updated.id = original.id.clone();
+                updated.enabled = original.enabled;
+                let mut latest = state.storage.load()?;
+                let entry = latest
+                    .profile_mut(profile_name.as_str())?
+                    .entries
+                    .iter_mut()
+                    .find(|entry| entry.id == id.as_str())
+                    .ok_or(crabhosts_core::Error::Conflict)?;
+                if entry.ip != original.ip
+                    || entry.hostnames != original.hostnames
+                    || entry.comment != original.comment
+                    || entry.enabled != original.enabled
+                {
+                    return Err(crabhosts_core::Error::Conflict);
+                }
+                *entry = updated;
+                state.storage.save(&mut latest)?;
+                Ok(latest)
+            })();
+            match outcome {
+                Ok(document) => {
+                    state.borrow_mut().document = document;
+                    window.set_show_edit_entry(false);
+                    rebuild(&window, &state.borrow());
+                    window.set_status(
+                        "已修改 Profile 记录；系统 hosts 未修改。请重新预览后手动应用。".into(),
+                    );
+                }
+                Err(error) => window.set_edit_entry_error(format!("保存失败：{error}").into()),
+            }
+        });
+    }
+    {
+        let state = Rc::clone(&state);
+        let weak = window.as_weak();
         window.on_toggle_entry(move |index| {
             let Some(window) = weak.upgrade() else {
                 return;
@@ -1238,7 +1296,15 @@ fn present_preview(
         }
         Err(error) => {
             update_panel_text(window, &format!("预览失败：{error}"));
+            let notice = match &error {
+                crabhosts_core::Error::ProfileConflicts(conflicts) => format!(
+                    "启用组合有主机名冲突（{} 处）；请查看差异预览并停用冲突记录。",
+                    conflicts.len()
+                ),
+                _ => "应用计划生成失败；请查看差异预览中的错误详情。".to_owned(),
+            };
             window.set_status(format!("预览失败：{error}").into());
+            toast(window, notice);
             None
         }
     }
@@ -2724,7 +2790,7 @@ mod tests {
             })
             .collect::<Vec<_>>();
         window.set_panel_mode(0);
-        window.set_panel_stats(format!("共 40 行 · +35 −5").into());
+        window.set_panel_stats("共 40 行 · +35 −5".into());
         window.set_panel_line_count(40);
         window.set_preview_lines(ModelRc::new(VecModel::from(long_lines)));
         window.set_preview_wrap(false);
@@ -2838,13 +2904,13 @@ mod tests {
             .storage
             .load_activation(&state.borrow().document)
             .unwrap();
-        assert_eq!(loaded.active_profile_ids, [alpha_id.clone()]);
+        assert_eq!(loaded.active_profile_ids, std::slice::from_ref(&alpha_id));
 
         window.invoke_profile_selected(0);
         assert_eq!(window.get_selected_name(), "alpha");
         assert_eq!(
             state.borrow().activation.active_profile_ids,
-            [alpha_id.clone()]
+            std::slice::from_ref(&alpha_id)
         );
         assert_eq!(fs::read_to_string(&hosts).unwrap(), original);
 
@@ -2887,6 +2953,142 @@ mod tests {
     }
 
     #[test]
+    fn edit_button_prefills_and_cancel_does_not_save() {
+        let directory = tempfile::tempdir().unwrap();
+        let original = "127.0.0.1 localhost\n";
+        let (hosts, window, state) = make_ui_test(&directory, original);
+        create_profile_with_entry(&window, &state, "alpha", "10.0.0.1", "old.local");
+        let before = state.borrow().storage.load().unwrap();
+        let entry = &before.profile("alpha").unwrap().entries[0];
+
+        activate(&window, "编辑 old.local");
+        assert!(window.get_show_edit_entry());
+        assert!(window.get_modal_open());
+        assert_eq!(window.get_edit_entry_id(), entry.id);
+        assert_eq!(window.get_edit_profile_name(), "alpha");
+        assert_eq!(window.get_edit_ip(), "10.0.0.1");
+        assert_eq!(window.get_edit_hostnames(), "old.local");
+        assert_button_enabled(&window, "确认编辑记录", true);
+        window.set_edit_hostnames("changed.local".into());
+        activate(&window, "取消编辑记录");
+        assert!(!window.get_show_edit_entry());
+        assert_eq!(
+            state.borrow().storage.load().unwrap().revision,
+            before.revision
+        );
+        assert_eq!(fs::read_to_string(&hosts).unwrap(), original);
+
+        activate(&window, "编辑 old.local");
+        window.set_edit_hostnames("changed.local".into());
+        activate(&window, "确认编辑记录");
+        assert!(!window.get_show_edit_entry());
+        let after = state.borrow().storage.load().unwrap();
+        assert_eq!(after.profile("alpha").unwrap().entries[0].id, entry.id);
+        assert_eq!(
+            after.profile("alpha").unwrap().entries[0].hostnames,
+            ["changed.local"]
+        );
+        assert_eq!(fs::read_to_string(&hosts).unwrap(), original);
+    }
+
+    #[test]
+    fn editing_entry_preserves_identity_and_does_not_apply_hosts() {
+        let directory = tempfile::tempdir().unwrap();
+        let original = "127.0.0.1 localhost\n";
+        let (hosts, window, state) = make_ui_test(&directory, original);
+        let profile_id = create_profile_with_entry(&window, &state, "CH", "10.0.0.1", "same.local");
+        window.invoke_add_entry("10.0.0.2".into(), "same.local".into(), "old".into());
+        set_profile_active(&window, &state, &profile_id, true);
+        window.invoke_request_apply();
+        assert!(!window.get_show_confirm());
+        assert!(
+            window.get_toast_visible(),
+            "a conflict must have visible feedback"
+        );
+        assert!(window.get_toast_text().contains("主机名冲突"));
+        assert!(state.borrow().storage.backups().list().unwrap().is_empty());
+        assert_eq!(fs::read_to_string(&hosts).unwrap(), original);
+
+        let entry = state.borrow().document.profile("CH").unwrap().entries[1].clone();
+        window.set_edit_profile_name("CH".into());
+        window.set_edit_entry_id(entry.id.clone().into());
+        window.set_show_edit_entry(true);
+        window.invoke_edit_entry(
+            entry.id.clone().into(),
+            "10.0.0.2".into(),
+            "unique.local".into(),
+            "updated".into(),
+        );
+        assert!(!window.get_show_edit_entry());
+        let saved = state.borrow().storage.load().unwrap();
+        let updated = &saved.profile("CH").unwrap().entries[1];
+        assert_eq!(updated.id, entry.id);
+        assert_eq!(updated.hostnames, ["unique.local"]);
+        assert_eq!(updated.comment.as_deref(), Some("updated"));
+        assert_eq!(updated.enabled, entry.enabled);
+        assert_eq!(fs::read_to_string(&hosts).unwrap(), original);
+        assert!(state.borrow().storage.backups().list().unwrap().is_empty());
+        window.invoke_request_apply();
+        assert!(window.get_show_confirm());
+        activate(&window, "取消");
+        assert_eq!(fs::read_to_string(&hosts).unwrap(), original);
+    }
+
+    #[test]
+    fn entry_edit_rejects_invalid_and_stale_changes_without_writing_hosts() {
+        let directory = tempfile::tempdir().unwrap();
+        let original = "127.0.0.1 localhost\n";
+        let (hosts, window, state) = make_ui_test(&directory, original);
+        create_profile_with_entry(&window, &state, "CH", "10.0.0.1", "same.local");
+        let entry = state.borrow().document.profile("CH").unwrap().entries[0].clone();
+        window.set_edit_profile_name("CH".into());
+        window.set_edit_entry_id(entry.id.clone().into());
+        window.set_show_edit_entry(true);
+        window.invoke_edit_entry(
+            entry.id.clone().into(),
+            "invalid".into(),
+            "new.local".into(),
+            "".into(),
+        );
+        assert!(window.get_show_edit_entry());
+        assert!(window.get_edit_entry_error().contains("保存失败"));
+        assert_eq!(
+            state
+                .borrow()
+                .storage
+                .load()
+                .unwrap()
+                .profile("CH")
+                .unwrap()
+                .entries[0]
+                .ip,
+            entry.ip
+        );
+
+        let mut external = state.borrow().storage.load().unwrap();
+        external.profile_mut("CH").unwrap().entries[0].comment = Some("external".into());
+        state.borrow().storage.save(&mut external).unwrap();
+        window.invoke_edit_entry(
+            entry.id.clone().into(),
+            "10.0.0.2".into(),
+            "new.local".into(),
+            "".into(),
+        );
+        assert!(window.get_show_edit_entry());
+        assert!(
+            window.get_edit_entry_error().contains("stale")
+                || window.get_edit_entry_error().contains("changed")
+        );
+        let latest = state.borrow().storage.load().unwrap();
+        assert_eq!(
+            latest.profile("CH").unwrap().entries[0].comment.as_deref(),
+            Some("external")
+        );
+        assert_eq!(fs::read_to_string(&hosts).unwrap(), original);
+        assert!(state.borrow().storage.backups().list().unwrap().is_empty());
+    }
+
+    #[test]
     fn apply_uses_complete_active_set_and_supports_empty_set() {
         let directory = tempfile::tempdir().unwrap();
         let original = "127.0.0.1 localhost\n10.0.0.9 outside.local\n";
@@ -2900,7 +3102,7 @@ mod tests {
         assert_eq!(window.get_confirmed_profile_count(), 1);
         assert_eq!(
             state.borrow().confirmed_plan.as_ref().unwrap().profile_ids,
-            [alpha_id.clone()]
+            std::slice::from_ref(&alpha_id)
         );
         confirm_apply(&window);
         let only_alpha = fs::read_to_string(&hosts).unwrap();
@@ -2930,7 +3132,7 @@ mod tests {
         assert!(state.borrow().confirmed_plan.is_none());
         assert_eq!(
             state.borrow().activation.active_profile_ids,
-            [beta_id.clone()]
+            std::slice::from_ref(&beta_id)
         );
         assert_eq!(
             fs::read_to_string(&hosts).unwrap(),
@@ -2995,7 +3197,7 @@ mod tests {
         assert!(window.get_show_confirm());
         assert_eq!(
             state.borrow().activation.active_profile_ids,
-            [alpha_id.clone()],
+            std::slice::from_ref(&alpha_id),
             "the UI snapshot is intentionally stale until confirmation revalidates"
         );
         assert_eq!(

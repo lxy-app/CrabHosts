@@ -815,6 +815,13 @@ export component MainWindow inherits Window {
     in-out property <bool> delete-profile-is-last: false;
     in-out property <bool> delete-profile-is-active: false;
     in-out property <bool> show-remove-entry: false;
+    in-out property <bool> show-edit-entry: false;
+    in-out property <string> edit-entry-id;
+    in-out property <string> edit-profile-name;
+    in-out property <string> edit-entry-error;
+    in-out property <string> edit-ip;
+    in-out property <string> edit-hostnames;
+    in-out property <string> edit-comment;
     in-out property <bool> show-backup-retention-confirm: false;
     in-out property <bool> show-import-confirm: false;
     in-out property <bool> show-confirm: false;
@@ -848,6 +855,7 @@ export component MainWindow inherits Window {
         }
     }
     callback add-entry(string, string, string);
+    callback edit-entry(string, string, string, string);
     callback toggle-entry(int);
     callback remove-entry(int);
     callback remove-selected();
@@ -907,6 +915,30 @@ export component MainWindow inherits Window {
             root.delete-profile-name = "";
         }
     }
+    function open-edit-entry(index: int) {
+        if (!root.modal-open && index >= 0 && index < root.entries.length && root.selected-name != "") {
+            root.edit-entry-id = root.entries[index].id;
+            root.edit-profile-name = root.selected-name;
+            root.edit-ip = root.entries[index].address;
+            root.edit-hostnames = root.entries[index].hostnames;
+            root.edit-comment = root.entries[index].comment;
+            root.edit-entry-error = "";
+            root.show-edit-entry = true;
+        }
+    }
+    function close-edit-entry() {
+        root.show-edit-entry = false;
+        root.edit-entry-error = "";
+        root.edit-entry-id = "";
+        root.edit-profile-name = "";
+    }
+    function submit-edit-entry() {
+        if (root.show-edit-entry && root.edit-entry-id != "" && root.edit-profile-name != "" &&
+            root.valid-entry(root.edit-ip, root.edit-hostnames, root.edit-comment)) {
+            root.edit-entry-error = "";
+            root.edit-entry(root.edit-entry-id, root.edit-ip, root.edit-hostnames, root.edit-comment);
+        }
+    }
     function close-backup-retention-confirmation() {
         root.show-backup-retention-confirm = false;
         root.backup-retention-cancelled();
@@ -927,7 +959,7 @@ export component MainWindow inherits Window {
     property <length> content-height: root.content-padding-top + root.content-padding-bottom +
         54px + root.entries-height + 126px + root.preview-height + 20px + 4 * root.content-gap;
     out property <bool> modal-open: root.show-create || root.show-delete-confirm || root.show-remove-entry ||
-        root.show-backup-retention-confirm || root.show-import-confirm || root.show-confirm ||
+        root.show-edit-entry || root.show-backup-retention-confirm || root.show-import-confirm || root.show-confirm ||
         root.show-helper-install || root.show-safety || root.show-reset-preferences;
     property <bool> helper-mode: root.helper-state != "direct" && root.helper-state != "unsupported";
     property <bool> helper-actionable: root.helper-state == "not_installed" || root.helper-state == "requires_approval" || root.helper-state == "registered_unavailable" || root.helper-state == "unavailable";
@@ -1409,7 +1441,7 @@ export component MainWindow inherits Window {
                                         Rectangle { width: 152px; Text { x: 14px; text: "IP 地址"; color: Theme.muted; font-size: 11px; vertical-alignment: center; } }
                                         Rectangle { horizontal-stretch: 1; Text { x: 14px; text: "Hostname"; color: Theme.muted; font-size: 11px; vertical-alignment: center; } }
                                         Rectangle { width: root.compact-width ? 110px : 156px; Text { x: 14px; text: "备注"; color: Theme.muted; font-size: 11px; vertical-alignment: center; } }
-                                        Rectangle { width: 58px; }
+                                        Rectangle { width: 72px; }
                                     }
                                     Rectangle { height: 1px; background: Theme.border-soft; }
                                     Rectangle {
@@ -1491,9 +1523,18 @@ export component MainWindow inherits Window {
                                                         }
                                                     }
                                                     Rectangle {
-                                                        width: 58px;
+                                                        width: 72px;
                                                         IconButton {
-                                                            x: 7px;
+                                                            x: 4px;
+                                                            y: (parent.height - 30px) / 2;
+                                                            icon: @image-url("assets/file.svg");
+                                                            accessible-name: "编辑 " + entry.hostnames;
+                                                            button-size: 30px;
+                                                            icon-size: 15px;
+                                                            clicked => root.open-edit-entry(index);
+                                                        }
+                                                        IconButton {
+                                                            x: 38px;
                                                             y: (parent.height - 30px) / 2;
                                                             icon: @image-url("assets/trash.svg");
                                                             accessible-name: "删除 " + entry.hostnames;
@@ -1974,6 +2015,72 @@ export component MainWindow inherits Window {
                 solid: true;
                 enabled: root.delete-profile-name != "" && root.delete-profile-confirmation == root.delete-profile-name;
                 clicked => { root.confirm-delete-profile(); }
+            }
+        }
+    }
+
+    if root.show-edit-entry : ModalFrame {
+        title: "编辑 Hosts 记录";
+        kicker: "PROFILE 记录";
+        dialog-description: "编辑当前 Profile 中的记录；保存不会写入系统 hosts。";
+        close => root.close-edit-entry();
+        VerticalLayout {
+            padding-top: 16px;
+            padding-bottom: 20px;
+            padding-left: 24px;
+            padding-right: 24px;
+            spacing: 10px;
+            Text {
+                text: "Profile「" + root.edit-profile-name + "」· 仅保存到 Profile，不会修改系统 hosts。";
+                color: Theme.muted;
+                font-size: 12px;
+                wrap: word-wrap;
+            }
+            Text { text: "IP 地址"; color: Theme.text-soft; font-size: 12px; }
+            FieldInput {
+                text <=> root.edit-ip;
+                placeholder: "127.0.0.1";
+                accessible-name: "编辑 IP 地址";
+                mono: true;
+                initial-focus: true;
+                submitted => root.submit-edit-entry();
+            }
+            Text { text: "Hostname（多个使用空格分隔）"; color: Theme.text-soft; font-size: 12px; }
+            FieldInput {
+                text <=> root.edit-hostnames;
+                placeholder: "api.local web.local";
+                accessible-name: "编辑 Hostname";
+                mono: true;
+                submitted => root.submit-edit-entry();
+            }
+            Text { text: "备注（可选）"; color: Theme.text-soft; font-size: 12px; }
+            FieldInput {
+                text <=> root.edit-comment;
+                placeholder: "用途说明";
+                accessible-name: "编辑备注";
+                submitted => root.submit-edit-entry();
+            }
+            if root.edit-entry-error != "" : Text {
+                text: root.edit-entry-error;
+                color: Theme.danger;
+                font-size: 12px;
+                wrap: word-wrap;
+            }
+        }
+        ModalFooter {
+            AppButton {
+                text: "取消";
+                kind: "quiet";
+                accessible-name: "取消编辑记录";
+                clicked => root.close-edit-entry();
+            }
+            AppButton {
+                text: "保存修改";
+                kind: "primary";
+                accessible-name: "确认编辑记录";
+                enabled: root.edit-entry-id != "" && root.edit-profile-name != "" &&
+                    root.valid-entry(root.edit-ip, root.edit-hostnames, root.edit-comment);
+                clicked => root.submit-edit-entry();
             }
         }
     }
